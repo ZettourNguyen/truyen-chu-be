@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model RoleToPermission {
+  permissionId Int
+  roleId       Int
+  updatedAt    DateTime   @default(now()) @db.Timestamp(0)
+  permission   permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, map: "FK_role_to_permission_Permission")
+  role         role       @relation(fields: [roleId], references: [id], onDelete: Cascade, map: "FK_role_to_permission_Role")
+
+  @@id([roleId, permissionId])
+  @@index([permissionId], map: "FK_role_to_permission_Permission")
+  @@map("role_to_permission")
+}
+
+model UserToRole {
+  roleId    Int
+  updatedAt DateTime @default(now()) @db.Timestamp(0)
+  userId    Int
+  role      role     @relation(fields: [roleId], references: [id], onDelete: Cascade, map: "FK_User_To_Role_Role")
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_User_To_Role_User")
+
+  @@id([userId, roleId])
+  @@index([roleId], map: "FK_User_To_Role_Role")
+  @@map("user_to_role")
+}
+
+model Author {
+  id           Int           @id @default(autoincrement())
+  name         String        @db.VarChar(255)
+  novel_author NovelAuthor[]
+
+  @@map("author")
+}
+
+model Bookmark {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  novelId   Int
+  updatedAt DateTime? @default(now()) @db.Timestamp(0)
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Bookmark_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Bookmark_User")
+
+  @@index([novelId], map: "FK_Bookmark_Novel")
+  @@index([userId], map: "FK_Bookmark_User")
+  @@map("bookmark")
+}
+
+model Chapter {
+  id            Int         @id @default(autoincrement())
+  chapterNumber Int?
+  title         String      @db.VarChar(255)
+  content       String?     @db.Text
+  novelId       Int
+  createdAt     DateTime?   @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime?   @default(now()) @db.Timestamp(0)
+  novel         Novel       @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Chapter_Novel")
+  history       History[]
+  view_count    ViewCount[]
+
+  @@index([novelId], map: "FK_Chapter_Novel")
+  @@map("chapter")
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  novelId   Int
+  userId    Int
+  content   String?   @db.Text
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @default(now()) @db.Timestamp(0)
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Comment_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Comment_User")
+  report    Report[]
+
+  @@index([novelId], map: "FK_Comment_Novel")
+  @@index([userId], map: "FK_Comment_User")
+  @@map("comment")
+}
+
+model Follow {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  novelId   Int
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Follow_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Follow_User")
+
+  @@index([novelId], map: "FK_Follow_Novel")
+  @@index([userId], map: "FK_Follow_User")
+  @@map("follow")
+}
+
+model History {
+  userId    Int
+  novelId   Int
+  chapterId Int
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @default(now()) @db.Timestamp(0)
+  chapter   Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade, map: "FK_History_Chapter")
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_History_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_History_User")
+
+  @@id([userId, novelId, chapterId])
+  @@index([chapterId], map: "FK_History_Chapter")
+  @@index([novelId], map: "FK_History_Novel")
+  @@map("history")
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      String?   @db.VarChar(255)
+  content   String?   @db.Text
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Notification_User")
+
+  @@index([userId], map: "FK_Notification_User")
+  @@map("notification")
+}
+
+model NovelAuthor {
+  authorId Int
+  novelId  Int
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade, map: "FK_Novel_Author_Author")
+  novel    Novel  @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Novel_Author_Novel")
+
+  @@id([authorId, novelId])
+  @@index([novelId], map: "FK_Novel_Author_Novel")
+  @@map("novel_author")
+}
+
+model NovelTag {
+  tagId   Int
+  novelId Int
+  novel   Novel @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Novel_Tag_Novel")
+  tag     Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade, map: "FK_Novel_Tag_Tag")
+
+  @@id([tagId, novelId])
+  @@index([novelId], map: "FK_Novel_Tag_Novel")
+  @@map("novel_tag")
+}
+
+model Novel {
+  id           Int           @id @default(autoincrement())
+  title        String        @db.VarChar(255)
+  image        String?       @db.VarChar(255)
+  banner       String?       @db.VarChar(255)
+  state        String?       @db.VarChar(50)
+  description  String?       @db.Text
+  posterId     Int?
+  createdAt    DateTime?     @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime?     @default(now()) @db.Timestamp(0)
+  bookmark     Bookmark[]
+  chapter      Chapter[]
+  comment      Comment[]
+  follow       Follow[]
+  history      History[]
+  novel_author NovelAuthor[]
+  novel_tag    NovelTag[]
+  rating       Rating[]
+  report       Report[]
+  view_count   ViewCount[]
+
+  @@map("novel")
+}
+
+model Rating {
+  novelId   Int
+  userId    Int
+  rating    Int?
+  review    String?   @db.Text
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @default(now()) @db.Timestamp(0)
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Rating_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Rating_User")
+
+  @@id([novelId, userId])
+  @@index([userId], map: "FK_Rating_User")
+  @@map("rating")
+}
+
+model Report {
+  id        Int       @id @default(autoincrement())
+  novelId   Int
+  userId    Int
+  commentId Int?
+  title     String?   @db.VarChar(255)
+  content   String?   @db.Text
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  comment   Comment?  @relation(fields: [commentId], references: [id], map: "FK_Report_Comment")
+  novel     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_Report_Novel")
+  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_Report_User")
+
+  @@index([commentId], map: "FK_Report_Comment")
+  @@index([novelId], map: "FK_Report_Novel")
+  @@index([userId], map: "FK_Report_User")
+  @@map("report")
+}
+
+model Tag {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique(map: "name_UNIQUE") @db.VarChar(30)
+  novel_tag NovelTag[]
+
+  @@map("tag")
+}
+
+model ViewCount {
+  novelId    Int
+  chapterId  Int
+  date       DateTime @db.Date
+  totalViews Int?
+  chapter    Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade, map: "FK_View_Count_Chapter")
+  novel      Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade, map: "FK_View_Count_Novel")
+
+  @@id([novelId, chapterId, date])
+  @@index([chapterId], map: "FK_View_Count_Chapter")
+  @@map("view_count")
+}
+
+model permission {
+  id          Int                @id @default(autoincrement())
+  createdAt   DateTime           @default(now()) @db.Timestamp(0)
+  description String?            @db.Text
+  name        String             @db.VarChar(100)
+  updatedAt   DateTime           @default(now()) @db.Timestamp(0)
+  roles       RoleToPermission[]
+}
+
+model role {
+  id          Int                @id @default(autoincrement())
+  createdAt   DateTime           @default(now()) @db.Timestamp(0)
+  description String?            @db.Text
+  name        String             @db.VarChar(100)
+  updatedAt   DateTime           @default(now()) @db.Timestamp(0)
+  permissions RoleToPermission[]
+  users       UserToRole[]
+}
+
+model user {
+  id           Int            @id @default(autoincrement())
+  username     String         @db.VarChar(100)
+  email        String         @unique(map: "User_email_key") @db.VarChar(100)
+  password     String         @db.Char(60)
+  avatar       String?        @db.VarChar(100)
+  birthday     DateTime?      @db.Date
+  gender       Int?           @default(2) @db.TinyInt
+  blacklist    Boolean        @default(false)
+  confirmed    Boolean        @default(false)
+  createdAt    DateTime       @default(now()) @db.Timestamp(0)
+  updatedAt    DateTime       @default(now()) @db.Timestamp(0)
+  bookmark     Bookmark[]
+  comment      Comment[]
+  follow       Follow[]
+  history      History[]
+  notification Notification[]
+  rating       Rating[]
+  report       Report[]
+  roles        UserToRole[]
+}
