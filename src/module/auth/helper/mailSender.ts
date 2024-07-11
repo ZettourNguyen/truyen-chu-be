@@ -86,7 +86,7 @@ export async function MailSenderEmailVerify(email: string, username: string, cod
                     <p>Chào <b>${username}</b>,</p>
                     <p>Để xác thực email của bạn, vui lòng click vào nút bên dưới:</p>
                     <a href="${url}code=${encodeURIComponent(code)}&email=${encodeURIComponent(email)}" style="color:#fff;font-size: 20px;font-weight: bold;" class="button">Xác thực Email của bạn</a>
-                    <p class="note">Thông báo xác thực email này có hiệu lực trong vòng 24h. Nếu qua 24h, xin vui lòng xin xác thực lại.</p>
+                    <p class="note">Thông báo xác thực email này có hiệu lực trong vòng 15 phút. Nếu qua 15 phút, xin vui lòng xin xác thực lại.</p>
                     <div class="footer">
                       <p>Cảm ơn bạn,</p>
                       <p>Nguyễn Văn Thịnh</p>

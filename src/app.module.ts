@@ -13,18 +13,32 @@ import { TagService } from './module/tag/tag.service';
 import { AuthorModule } from './module/author/author.module';
 import { AuthorService } from './module/author/author.service';
 import { AuthorController } from './module/author/author.controller';
+import { UserService } from './module/auth/user.service';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { CategoryModule } from './module/category/category.module';
+import { CategoryController } from './module/category/category.controller';
+import { CategoryService } from './module/category/category.service';
 
 @Module({
-  imports: [AuthModule, PrismaModule, 
+  imports: [AuthModule, PrismaModule,
     JwtModule.register({
       secret: 'jwtsecretkey',
       signOptions: {
         expiresIn: '1h',
       },
-      
-    }), NovelModule, TagModule, AuthorModule
+    }),
+    // GraphQLModule.forRoot<ApolloDriverConfig>({
+    //   driver: ApolloDriver,
+    //   autoSchemaFile: true,
+    //   sortSchema: true,
+    //   typePaths: ['./**/*.graphql'],
+    //   // playground: false,
+    // })
+    // ,
+    NovelModule, TagModule, AuthorModule, CategoryModule
   ],
-  controllers: [NovelController, TagController, AuthController, AuthorController],
-  providers: [AuthService, NovelService, TagService, AuthorService],
+  controllers: [NovelController, TagController, AuthController, AuthorController, CategoryController],
+  providers: [AuthService, NovelService, TagService, AuthorService, UserService, CategoryService],
 })
-export class AppModule {}
+export class AppModule { }

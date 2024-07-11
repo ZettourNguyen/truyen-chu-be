@@ -13,10 +13,6 @@ export interface NovelTagDto {
 }
 
 
-export interface CreateNovelTagDto {
-  novelId: number
-  tagId: number;
-}
 
 // export interface UpdateNovelTagDto {
 //   novelId: number

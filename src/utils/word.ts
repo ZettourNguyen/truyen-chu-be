@@ -8,3 +8,11 @@ export function capitalizeWords(str: string): string {
   export function replaceMultipleSpacesAndTrim(str: string): string {
     return str.replace(/ +/g, " ").trim();
 }
+
+export function formatString(str) {
+  const lowerCaseStr = str.toLowerCase();
+
+  const formattedStr = lowerCaseStr.charAt(0).toUpperCase() + lowerCaseStr.slice(1);
+
+  return formattedStr;
+}

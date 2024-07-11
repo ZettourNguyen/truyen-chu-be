@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { RegisterDTO } from './dto/register.dto';
 import { PrismaService } from 'src/Prisma/prisma.service';
 import { comparePassword, hashPassword } from './helper/bcrypt';
@@ -7,6 +7,7 @@ import { MailSenderEmailVerify } from './helper/mailSender';
 import { redisClient } from 'src/redis/connect';
 import { KeyGenerator } from './helper/key';
 import { generateVerificationCode } from './helper/verificationCode';
+import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 
 @Injectable()
 export class AuthService {
@@ -14,22 +15,10 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService,
     private readonly jwtService: JwtService
   ) { }
-
+  // 
   async validateUserAndPassword(email: string, password: string) {
     const sensitiveUserInfoFields = ['id', 'username', 'email', 'avatar', 'birthday', 'gender', 'confirmed', 'createdAt', 'updatedAt'];
     const userInfo = await this.prisma.user.findFirst({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        password: true,
-        avatar: true,
-        birthday: true,
-        gender: true,
-        confirmed: true,
-        createdAt: true,
-        updatedAt: true,
-      },
       where: {
         email: email
       }
@@ -85,14 +74,24 @@ export class AuthService {
     return this.signToken(user.email, user.id)
   }
 
+  // async sendOTPVerify(email: string, username: string) {
+  //   const code = generateVerificationCode()
+  //   MailSenderEmailVerify(email, username, code) //ok
+  //   await redisClient.setEx(KeyGenerator.createSignupOTPKey(email), 900, code) // 900s =15m
+  //   //       return this.jwtService.sign(user)
+  // }
   async sendOTPVerify(email: string, username: string) {
-    const code = generateVerificationCode()
-    MailSenderEmailVerify(email, username, code) //ok
-    await redisClient.setEx(KeyGenerator.createSignupOTPKey(email), 900, code) // 900s =15m
-    console.log(code)
-    //       return this.jwtService.sign(user)
-  }
-
+    const redisKey = KeyGenerator.createSignupOTPKey(email);
+    const existingToken = await redisClient.get(redisKey);
+    if (existingToken) {
+        // Xóa token cũ trong Redis
+        await redisClient.del(redisKey);
+    }
+    const code = generateVerificationCode();
+    await redisClient.setEx(redisKey, 900, code); // 900 giây = 15 phút
+    MailSenderEmailVerify(email, username, code);
+    return { message: 'Verification code sent successfully' };
+}
 
   // /user click vao button in mail => ()
   async handleVerifyCode(code, email) {
@@ -100,7 +99,7 @@ export class AuthService {
     const otpInRedis = await redisClient.get(signupOTPKey);
 
     if (!otpInRedis || code !== otpInRedis) {
-      return; // Trả về phản hồi không thành công nếu không khớp mã OTP
+      throw new NotFoundException("Mã xác nhận đã hết hạn")
     }
 
     // Nếu mã OTP khớp, tiếp tục xử lý logic của bạn ở đây
@@ -112,24 +111,17 @@ export class AuthService {
         confirmed: true
       }
     })
-    if (changeStateConfirm) {
-      throw new InternalServerErrorException(" can change confirmed for user")
-      
+    if (!changeStateConfirm) {
+      throw new InternalServerErrorException("Trạng thái confirmed chưa được thay đổi")
     }
-    // Xóa mã OTP từ Redis sau khi sử dụng (tuỳ vào logic của bạn)
+    // Xóa mã OTP từ Redis sau khi sử dụng
     await redisClient.del(signupOTPKey)
-    console.log('? da xoa redis?')
-    const signupOTPKeyTest = KeyGenerator.createSignupOTPKey(email);
-    const otpInRedisTest = await redisClient.get(signupOTPKey);
-    console.log(signupOTPKeyTest)
-    console.log(otpInRedisTest)
-
     console.log('handleVerifyCode successfull')
-
     // Trả về phản hồi thành công nếu cần
     return true
 
   }
+  
 
 }
 

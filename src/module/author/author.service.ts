@@ -12,10 +12,10 @@ export class AuthorService {
         return this.prisma.author.findMany();
     }
 
-    async findByName(name: string) {
+    async findByName(nickname: string) {
         const author = await this.prisma.author.findMany({
             where: {
-                name
+                nickname
             }
         })
         if (!author) {
@@ -37,27 +37,27 @@ export class AuthorService {
     }
 
     async validateAuthorName(name: string) {
-        const tagName = await this.prisma.author.findFirst({
+        const author = await this.prisma.author.findFirst({
             where: {
-                name: name,
+                nickname: name,
             },
         });
-        console.log(tagName)
+        console.log(author)
 
-        if (tagName) {
-            throw new ForbiddenException(`Tag with name '${name}' already exists.`);
+        if (author) {
+            throw new ForbiddenException(`Author with name '${name}' already exists.`);
         }
+        return author
     }
 
-    async create(data: createAuthorDto): Promise<Author> {
-        const authorName = replaceMultipleSpacesAndTrim(data.name)
+    async create(data: string, prisma: PrismaService): Promise<Author> {
+        const authorName = replaceMultipleSpacesAndTrim(data)
         await this.validateAuthorName(authorName);  // ktra name(unique)
-
-        const author = await this.prisma.author.create({ data: {name : authorName} });
+        
+        const author = await prisma.author.create({ data: {nickname : authorName} });
         if(!author){
             throw new BadRequestException('Có lỗi trong quá trình tạo tác giả, vui lòng thử lại.');
         }
-
         return author
     }
 
@@ -80,5 +80,21 @@ export class AuthorService {
         return this.prisma.author.delete({
             where: { id },
         });
+    }
+
+    async createNovelAuthor(novelId : number, authorId: number, prisma: PrismaService){
+        const existingAuthor = await prisma.author.findUnique({
+            where: { id: authorId },
+          });
+          
+          if (!existingAuthor) {
+            throw new Error(`Author with id ${authorId} does not exist.`);
+          }
+        return await prisma.novelAuthor.create({
+            data:{
+                novelId,
+                authorId
+            }
+        })
     }
 }

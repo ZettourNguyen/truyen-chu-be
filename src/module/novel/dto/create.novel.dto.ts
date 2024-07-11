@@ -6,4 +6,6 @@ export interface CreateNovel{
     state: string;
     description: string;
     posterId: number;
+    categoryId: number;
+
 }

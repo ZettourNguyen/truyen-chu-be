@@ -18,9 +18,9 @@ export class NovelController {
         return this.novelService.getNovelById(+id);
     }
 
-    @Get('title/:title')
+    @Get('search/:title')
     async novelByName(@Param('title') title: string) {
-        const novel = await this.novelService.novelByName(title);
+        const novel = await this.novelService.findManyNovelByName(title);
         return novel;
     }
 
@@ -28,10 +28,16 @@ export class NovelController {
     async getAllNovels() {
         return this.novelService.getAllNovels();
     }
+
+    @Get('/random')// 6 cai
+    async getNovelsByRandom() {
+        return this.novelService.getNovelsByRandom()
+    }
     
     @Post()
-    async createNovel(@Body() createNovelDto: CreateNovel) {
-        return this.novelService.createNovel(createNovelDto);
+    async createNovel(@Body() createNovelDto: { data: CreateNovel; authorNameInInput: string, tagsId: JSON }) {
+      const { data, authorNameInInput, tagsId } = createNovelDto;
+      return this.novelService.createNovelWithTransaction(data, authorNameInInput, tagsId);
     }
 
     @Put(':id')

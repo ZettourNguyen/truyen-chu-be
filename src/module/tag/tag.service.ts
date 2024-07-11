@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/Prisma/prisma.service';
-import { CreateNovelTagDto, CreateTagDto, DeleteNovelTagDto, NovelTagDto, UpdateTagDto } from './dto/tag.dto';
-import {capitalizeWords, replaceMultipleSpacesAndTrim} from '../../utils/word';
+import { CreateTagDto, DeleteNovelTagDto, NovelTagDto, UpdateTagDto } from './dto/tag.dto';
+import {capitalizeWords, formatString, replaceMultipleSpacesAndTrim} from '../../utils/word';
 
 @Injectable()
 export class TagService {
@@ -34,7 +34,7 @@ export class TagService {
   }
   // create tag
   async create(createTagDto: CreateTagDto) {
-    const inputName = replaceMultipleSpacesAndTrim(createTagDto.name)  //
+    const inputName = replaceMultipleSpacesAndTrim(formatString(createTagDto.name))  //
     await this.validateTagName(inputName); 
 
     const name = capitalizeWords(inputName)
@@ -111,23 +111,23 @@ export class TagService {
         }
       },
     });
-    return !!novelTag
+    return novelTag
   }
 
   // create novel-tag
-  async createNovelTag(data: CreateNovelTagDto) {
-    const tagName = await this.getTagName(data.tagId) // ktra tag existed và lấy tag
+  async createNovelTag( tagId: number, novelId: number, prisma: PrismaService) {
+    const tagName = await this.getTagName(tagId) // ktra tag existed và lấy tag
 
     // ktra da co trong db chua | co => loi
-    const novelTag = this.validateNovelTag(data.novelId, data.tagId)
+    const novelTag = await this.validateNovelTag(novelId, tagId)
     if (novelTag) {
       throw new BadRequestException(`Da ton tai ${tagName} trong novel`)
     }
     // luu novel-tag
-    const saveNovelTag = await this.prisma.novelTag.create({
+    const saveNovelTag = await prisma.novelTag.create({
       data: {
-        novelId: data.novelId,
-        tagId: data.tagId,
+        novelId: novelId,
+        tagId: tagId,
       },
     });
     if (!saveNovelTag) {
