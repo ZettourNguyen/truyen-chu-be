@@ -8,9 +8,9 @@ export const GetUser = createParamDecorator(
     const req: Request = context.switchToHttp().getRequest();
     const token = req.headers.authorization?.split(" ")[1]
     const isBlacklisted = await redisClient.get(`blacklist_${token}`);
-        if (isBlacklisted) {
-            throw new UnauthorizedException('Token is blacklisted');
-        }
+    if (isBlacklisted) {
+      throw new UnauthorizedException('Token is blacklisted');
+    }
     return req.user;
   },
 );
