@@ -129,7 +129,7 @@ model Novel {
   id          Int       @id @default(autoincrement())
   title       String    @db.VarChar(255)
   image       String    @db.VarChar(255)
-  banner      String    @db.VarChar(255)
+  banner      String?   @db.VarChar(255)
   state       String?   @default("Còn tiếp") @db.VarChar(50)
   description String    @db.Text
   posterId    Int
@@ -175,6 +175,7 @@ model Tag {
   id   Int    @id @default(autoincrement())
   name String @db.VarChar(30)
 
+  @@index([name], map: "idx_tag_name_asc")
   @@map("tag")
 }
 

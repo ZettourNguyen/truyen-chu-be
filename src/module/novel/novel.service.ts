@@ -90,7 +90,7 @@ export class NovelService {
         const novelTitle = replaceMultipleSpacesAndTrim(formatString(data.title))
         const existingNovel = await this.findOneNovelByName(novelTitle)
         if (existingNovel) {
-            throw new ConflictException(`Tên truyện đã có sẵn ${novelTitle}, vui lòng đổi tên truyện khác`)
+            throw new ConflictException(`Tên truyện đã có sẵn: ${novelTitle}, vui lòng đổi tên truyện khác`)
         }
         const novel = await prisma.novel.create({
             data: data
@@ -164,7 +164,7 @@ export class NovelService {
                     let author;
                     if (authorNameInInput) {
                         author = await this.authorService.create(replaceMultipleSpacesAndTrim(authorNameInInput), prisma);
-                        await this.authorService.createNovelAuthor(author.id, novel.id, prisma);
+                        await this.authorService.createNovelAuthor(novel.id, author.id, prisma);
                     } else {
                         // Tạo mới author and novel-author voi author = poster
                         author = await this.authorService.create(replaceMultipleSpacesAndTrim(dataPoster.username), prisma);
@@ -184,7 +184,7 @@ export class NovelService {
                 return result;
             } catch (error) {
                 console.log(error)
-                throw new Error('Transaction failed, rolling back changes.');
+                return error
             }
         }
     }

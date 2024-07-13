@@ -1,20 +1,17 @@
-import { BadRequestException, Body, ConflictException, Controller, Get, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { GetUser } from 'src/decorator/get-user.decorator';
 import { RegisterDTO } from './dto/register.dto';
 import { redisClient } from 'src/redis/connect';
-import { generateVerificationCode } from './helper/verificationCode';
-import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
 
 @Controller('auth')
-@UseFilters(HttpExceptionFilter)
 export class AuthController {
 
-    constructor(private readonly authService: AuthService,
+    constructor(
+        private readonly authService: AuthService,
         private jwtService: JwtService,
     ) { }
 
@@ -23,18 +20,19 @@ export class AuthController {
     signin(@Req() req: Request) {
         const user = req.user;
         const accessToken = this.jwtService.sign(user);
-        return { accessToken }; // return successfull
+        return { accessToken }; 
     }
 
     @Get('getUser')
     @UseGuards(AuthGuard('jwt'))
     testApi(@GetUser() user) {
-        return user // return user successfull
+        console.log("GetUser")
+        return user; 
     } 
 
     @Post('register')
     register(@Body() registerData: RegisterDTO) {
-        return this.authService.register(registerData)
+        return this.authService.register(registerData);
     }
 
     @Get('verify')
@@ -46,7 +44,22 @@ export class AuthController {
         const result = await this.authService.handleVerifyCode(code, email);
         if (result) {
             return 'Email verified successfully';
+        } else {
+            throw new BadRequestException('Verification failed');
         }
-        else return BadRequestException
+    }
+
+    @Post('logout')
+    @UseGuards(AuthGuard('jwt'))
+    async logout(@Req() req: Request) {
+        const token = req.headers.authorization?.split(' ')[1];
+        console.log(token)
+        if (!token) {
+            throw new UnauthorizedException('Authorization token not found');
+        }
+
+        await redisClient.set(`blacklist_${token}`, token);
+
+        return { message: 'Logged out successfully' };
     }
 }

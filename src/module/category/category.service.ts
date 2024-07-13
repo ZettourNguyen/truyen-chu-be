@@ -29,8 +29,6 @@ export class CategoryService {
                 name: name,
             },
         });
-        console.log(categoryName)
-
         if (categoryName) {
             throw new ForbiddenException(`Category with name '${name}' already exists.`);
         }
