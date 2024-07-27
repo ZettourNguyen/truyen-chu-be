@@ -19,6 +19,12 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { CategoryModule } from './module/category/category.module';
 import { CategoryController } from './module/category/category.controller';
 import { CategoryService } from './module/category/category.service';
+import { ChapterModule } from './module/chapter/chapter.module';
+import { ChapterController } from './module/chapter/chapter.controller';
+import { ChapterService } from './module/chapter/chapter.service';
+import { HistoryModule } from './module/history/history.module';
+import { HistoryController } from './module/history/history.controller';
+import { HistoryService } from './module/history/history.service';
 
 @Module({
   imports: [AuthModule, PrismaModule,
@@ -36,9 +42,9 @@ import { CategoryService } from './module/category/category.service';
     //   // playground: false,
     // })
     // ,
-    NovelModule, TagModule, AuthorModule, CategoryModule
+    NovelModule, TagModule, AuthorModule, CategoryModule, ChapterModule, HistoryModule
   ],
-  controllers: [NovelController, TagController, AuthController, AuthorController, CategoryController],
-  providers: [AuthService, NovelService, TagService, AuthorService, UserService, CategoryService],
+  controllers: [NovelController, TagController, AuthController, AuthorController, CategoryController, ChapterController, HistoryController],
+  providers: [AuthService, NovelService, TagService, AuthorService, UserService, CategoryService, ChapterService, HistoryService],
 })
 export class AppModule { }

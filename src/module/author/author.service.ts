@@ -19,11 +19,25 @@ export class AuthorService {
             }
         })
         if (!author) {
-            throw new NotFoundException(`Author with name ${name} not found`)
+            throw new NotFoundException(`Author with name ${nickname} not found`)
         }
         return author
+    }
 
-
+    async findAuthorByNovelId(novelId:number){
+        const authorId = await this.prisma.novelAuthor.findFirst({
+            where:{
+                novelId
+            },
+            select:{
+                authorId:true
+            }
+        })
+        if (!authorId) {
+            throw new NotFoundException('No author here') 
+        }
+        const author = await this.findById(authorId.authorId)
+        return author
     }
 
     async findById(id: number): Promise<Author | null> {
@@ -42,18 +56,15 @@ export class AuthorService {
                 nickname: name,
             },
         });
-        console.log(author)
-
-        if (author) {
-            throw new ForbiddenException(`Author with name '${name}' already exists.`);
-        }
         return author
     }
 
     async create(data: string, prisma: PrismaService): Promise<Author> {
         const authorName = replaceMultipleSpacesAndTrim(data)
-        await this.validateAuthorName(authorName);  // ktra name(unique)
-        
+        const validateAuthorName = await this.validateAuthorName(authorName);  
+        if (validateAuthorName) {
+            throw new ForbiddenException(`Author with name '${name}' already exists.`);
+        }
         const author = await prisma.author.create({ data: {nickname : authorName} });
         if(!author){
             throw new BadRequestException('Có lỗi trong quá trình tạo tác giả, vui lòng thử lại.');

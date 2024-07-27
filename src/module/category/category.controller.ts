@@ -19,6 +19,16 @@ export class CategoryController {
     async findAll() {
         return this.categoryService.findAll();
     }
+    @Get('name/:id')
+    async getName(@Param('id') id: string){
+        return this.categoryService.getCategoryName(+id)
+    }
+
+    @Get('/novel/:id')
+    async findCategoryName(@Param('id') id: number){
+        const name = await this.categoryService.getCategoryName(+id)
+        return name
+    }
 
     @Get('/:id')
     async listNovels(@Param('id') id: number){

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
@@ -6,12 +6,15 @@ import { JwtService } from '@nestjs/jwt';
 import { GetUser } from 'src/decorator/get-user.decorator';
 import { RegisterDTO } from './dto/register.dto';
 import { redisClient } from 'src/redis/connect';
+import { UserService } from './user.service';
+import { UserUpdateImage } from './dto/user.dto';
 
 @Controller('auth')
 export class AuthController {
 
     constructor(
         private readonly authService: AuthService,
+        private readonly userService: UserService,
         private jwtService: JwtService,
     ) { }
 
@@ -26,9 +29,15 @@ export class AuthController {
     @Get('getUser')
     @UseGuards(AuthGuard('jwt'))
     testApi(@GetUser() user) {
-        console.log("GetUser")
+        user = this.userService.getDataUserById(user?.id)
         return user; 
     } 
+
+    @Post('avatar')
+    updateImageAvatar(@Body() data: UserUpdateImage){
+        const result = this.userService.updateImageAvatar(+data.id, data.avatar)
+        return result
+    }
 
     @Post('register')
     register(@Body() registerData: RegisterDTO) {
@@ -61,5 +70,11 @@ export class AuthController {
         await redisClient.set(`blacklist_${token}`, token);
 
         return { message: 'Logged out successfully' };
+    }
+         
+    @Get('name/:id')
+    async getName(@Param('id') id: string){
+        const user = await this.userService.getDataUserById(+id)
+        return user.username
     }
 }

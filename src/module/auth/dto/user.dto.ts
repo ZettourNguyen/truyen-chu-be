@@ -7,3 +7,8 @@ export interface UserInfo {
     birthday: string;
     gender: number;
 }
+
+export interface UserUpdateImage{
+    id:string
+    avatar:string
+}

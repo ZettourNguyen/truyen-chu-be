@@ -73,31 +73,51 @@ export class TagService {
   // =============================== TagName service ==================================
   // =============================== TagName service ==================================
 
-
-  // lay tat ca cac tag cua novelId
-  async getAllNovelTagByNovelId(novelId: number){
-    const listTag = this.prisma.novelTag.findMany({
-      where:{
-        novelId: novelId
-      }
-    })
-    if (listTag=== null) {
-      throw new NotFoundException(`Không có tag nào trong novel ${novelId} này`)
+  // Lấy danh sách tagId và tagName theo novelId
+  async getTagByNovelId(novelId: number) {
+    const arrTags = await this.getAllTagIdByNovelId(novelId);
+    const tagIds = arrTags.map(tag => tag.tagId);
+    const tags = await this.prisma.tag.findMany({
+      where: {
+        id: { in: tagIds },
+      },
+    });
+    if (!tags || tags.length === 0) {
+      throw new NotFoundException(`Không có tag nào trong novel ${novelId} này`);
     }
-    return listTag
+    return tags;
   }
 
-  // lay tat ca cac novel cua tagId
-  async getAllNovelTagByTagId(tagId: number){
-    const listNovel = this.prisma.novelTag.findMany({
+  // Lấy danh sách của novelId
+  async getAllTagIdByNovelId(novelId: number){
+    const arrTags = await this.prisma.novelTag.findMany({
       where:{
-        novelId: tagId
+        novelId: novelId
+      },
+      select:{
+        tagId:true
       }
     })
-    if (listNovel=== null) {
+    if (!arrTags) {
+      throw new NotFoundException(`Không có tag nào trong novel ${novelId} này`)
+    }
+    return arrTags
+  }
+
+  // Lấy danh sách novel cua tagId
+  async getAllNovelIdByTagId(tagId: number){
+    const arrNovels = await this.prisma.novelTag.findMany({
+      where:{
+        tagId: tagId
+      },
+      select:{
+        novelId:true
+      }
+    })
+    if (!arrNovels) {
       throw new NotFoundException(`Không có novel chứa tag ${tagId} này`)
     }
-    return listNovel
+    return arrNovels
   }
 
 

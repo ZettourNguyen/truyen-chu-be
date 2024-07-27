@@ -14,8 +14,15 @@ export class UserService {
     try {
       return await this.prisma.user.findUnique({
         select: {
+          id: true,
           username: true,
-          email: true
+          email: true,
+          avatar: true,
+          birthday: true,
+          gender: true,
+          blacklist: true,
+          confirmed: true,
+          createdAt: true,
         },
         where: {
           id
@@ -41,6 +48,20 @@ export class UserService {
         id: id
       }
     });
+  }
+
+  async updateImageAvatar(id : number, avatar: string){
+    return await this.prisma.user.update({
+      select:{
+        avatar:true
+      },
+      where:{
+        id: id
+      },
+      data:{
+        avatar: avatar
+      }
+    })
   }
 
 }

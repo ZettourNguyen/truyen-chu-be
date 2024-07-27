@@ -34,6 +34,7 @@ model Author {
   nickname  String  @db.VarChar(255)
 
   @@map("author")
+  NovelAuthor NovelAuthor[]
 }
 
 model Bookmark {
@@ -42,23 +43,35 @@ model Bookmark {
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
 
+  user     user    @relation(fields: [userId], references: [id])
+  novel    Novel   @relation(fields: [novelId], references: [id])
+
   @@index([userId], map: "bookmark_ibfk_1")
   @@index([novelId], map: "bookmark_ibfk_2")
   @@map("bookmark")
 }
 
-model Chapter {
-  id        Int       @id @default(autoincrement())
-  title     String    @db.VarChar(255)
-  content   String    @db.Text
-  novelId   Int
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @default(now()) @db.Timestamp(0)
-  index     Int       @db.UnsignedInt
 
-  @@index([novelId], map: "chapter_ibfk_1")
+model Chapter {
+  id            Int       @id @default(autoincrement())
+  title         String    @db.VarChar(255)
+  content       String    @db.Text
+  novelId       Int
+  createdAt     DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt     DateTime? @default(now()) @db.Timestamp(0)
+  index         Int       @db.UnsignedInt
+  isPublish     Boolean
+  chapterLength Int       @db.UnsignedInt
+
+  novel     Novel    @relation(fields: [novelId], references: [id])
+  histories History[]
+
+  @@index([index])
+  @@index([novelId], map: "chapter_novelId_fk_idx")
   @@map("chapter")
+  View View[]
 }
+
 
 model Comment {
   id        Int       @id @default(autoincrement())
@@ -68,21 +81,30 @@ model Comment {
   updatedAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
 
+  user     user    @relation(fields: [userId], references: [id])
+  novel    Novel   @relation(fields: [novelId], references: [id])
+
   @@index([novelId], map: "comment_ibfk_1")
   @@index([userId], map: "comment_ibfk_2")
   @@map("comment")
+  Report Report[]
 }
+
 
 model Follow {
   id        Int       @id @default(autoincrement())
   novelId   Int
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
 
-  @@index([userId], map: "follow_ibfk_1")
-  @@index([novelId], map: "follow_ibfk_2")
+  user     user    @relation(fields: [userId], references: [id])
+  novel    Novel   @relation(fields: [novelId], references: [id])
+
+  @@index([userId], map: "fl_fk1_idx")
+  @@index([novelId], map: "fl_fk2_idx")
   @@map("follow")
 }
+
 
 model History {
   chapterId Int
@@ -91,79 +113,117 @@ model History {
   id        Int       @id @default(autoincrement())
   userId    Int
 
-  @@index([chapterId], map: "chapterId")
-  @@index([userId], map: "userId")
+  user     user    @relation(fields: [userId], references: [id])
+  chapter  Chapter @relation(fields: [chapterId], references: [id])
+
+  @@index([chapterId], map: "fk_chapter")
+  @@index([userId], map: "h_c_fk_idx")
   @@map("history")
 }
 
+
+
 model Notification {
   id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(45)
   type      String    @db.VarChar(25)
   content   String    @db.VarChar(255)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
 
+  user     user    @relation(fields: [userId], references: [id])
+
   @@index([userId], map: "notification_ibfk_1")
   @@map("notification")
 }
 
+
 model NovelAuthor {
   authorId Int
   novelId  Int
+
+  author  Author @relation(fields: [authorId], references: [id])
+  novel   Novel  @relation(fields: [novelId], references: [id])
 
   @@id([authorId, novelId])
   @@index([novelId], map: "novelId")
   @@map("novel_author")
 }
 
+
 model NovelTag {
   tagId   Int
   novelId Int
+
+  tag    Tag   @relation(fields: [tagId], references: [id])
+  novel  Novel @relation(fields: [novelId], references: [id])
 
   @@id([tagId, novelId])
   @@index([novelId], map: "fk_novel_idx")
   @@map("novel_tag")
 }
 
+
 model Novel {
   id          Int       @id @default(autoincrement())
-  title       String    @db.VarChar(255)
+  title       String    @unique(map: "title_UNIQUE") @db.VarChar(255)
   image       String    @db.VarChar(255)
   banner      String?   @db.VarChar(255)
-  state       String?   @default("Còn tiếp") @db.VarChar(50)
+  state       String    @default("ongoing") @db.VarChar(50)
   description String    @db.Text
   posterId    Int
   createdAt   DateTime? @default(now()) @db.Timestamp(0)
   updatedAt   DateTime? @default(now()) @db.Timestamp(0)
   categoryId  Int
 
+  poster    user     @relation(fields: [posterId], references: [id])
+  category  Category @relation(fields: [categoryId], references: [id])
+  chapters  Chapter[]
+  comments  Comment[]
+  ratings   Rating[]
+  followers Follow[]
+  bookmarks Bookmark[]
+  authors   NovelAuthor[]
+  tags       NovelTag[]
+
   @@index([posterId], map: "novel_ibfk_1")
   @@index([categoryId], map: "novel_ibfk_2")
   @@map("novel")
+  Report Report[]
 }
 
+
 model Rating {
+  id        Int       @id @default(autoincrement())
   novelId   Int
   rating    Int
+  content   String?   @db.Text
+  userId    Int
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @default(now()) @db.Timestamp(0)
-  content   String?   @db.Text
-  id        Int       @id @default(autoincrement())
-  userId    Int
+
+  user     user    @relation(fields: [userId], references: [id])
+  novel    Novel   @relation(fields: [novelId], references: [id])
 
   @@index([userId], map: "rating_ibfk_1_idx")
   @@index([novelId], map: "rating_ibfk_2_idx")
   @@map("rating")
 }
 
+
 model Report {
   id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(255)
   novelId   Int
   commentId Int?
-  title     String    @db.VarChar(255)
-  content   String    @db.Text
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
+  type      String    @db.VarChar(45)
+  content   String?   @db.VarChar(255)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+
+  user     user    @relation(fields: [userId], references: [id])
+  novel    Novel   @relation(fields: [novelId], references: [id])
+  comment  Comment? @relation(fields: [commentId], references: [id])
 
   @@index([commentId], map: "commentId")
   @@index([novelId], map: "report_ibfk_1")
@@ -171,23 +231,14 @@ model Report {
   @@map("report")
 }
 
+
 model Tag {
   id   Int    @id @default(autoincrement())
   name String @db.VarChar(30)
 
   @@index([name], map: "idx_tag_name_asc")
   @@map("tag")
-}
-
-model ViewCount {
-  chapterId Int
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  id        Int       @id @default(autoincrement())
-  userId    Int
-
-  @@index([chapterId], map: "chapterId")
-  @@index([userId], map: "view_count_ibfk_2_idx")
-  @@map("view_count")
+  NovelTag NovelTag[]
 }
 
 model permission {
@@ -211,34 +262,60 @@ model user {
   username  String    @db.VarChar(100)
   email     String    @unique(map: "email") @db.VarChar(100)
   password  String    @db.Char(60)
-  avatar    String?   @default("https://staticvn.sangtacvietcdn.xyz/img/useravatar/default.png") @db.VarChar(100)
+  avatar    String?   @default("https://staticvn.sangtacvietcdn.xyz/img/useravatar/default.png") @db.VarChar(255)
   birthday  DateTime? @db.Date
   gender    Int?      @default(2) @db.TinyInt
   blacklist Boolean?  @default(false)
   confirmed Boolean?  @default(false)
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @default(now()) @db.Timestamp(0)
+
+  Bookmark Bookmark[]
+
+  Comment Comment[]
+
+  Follow Follow[]
+
+  History History[]
+
+  Notification Notification[]
+
+  Novel Novel[]
+
+  Rating Rating[]
+
+  Report Report[]
+
+  View View[]
 }
 
-model category {
+model Category {
   id          Int     @id @default(autoincrement())
   name        String  @db.VarChar(45)
   description String? @db.VarChar(85)
+  novels      Novel[]
 }
 
-model alias {
-  id      Int    @id @default(autoincrement())
-  title   String @db.VarChar(255)
-  novelId Int?
 
-  @@index([novelId], map: "novelId")
-}
-
-model comment_interaction {
-  commentId       Int
+model rating_interaction {s
+  ratingId        Int
   userId          Int
   interactionType String? @db.VarChar(255)
 
-  @@id([commentId, userId])
+  @@id([ratingId, userId])
   @@index([userId], map: "userId")
 }
+
+model View {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  chapterId Int
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+
+  user    user    @relation(fields: [userId], references: [id])
+  chapter Chapter @relation(fields: [chapterId], references: [id])
+
+  @@index([userId], map: "view_ibfk_1")
+  @@index([chapterId], map: "view_ibfk_2")
+}
+

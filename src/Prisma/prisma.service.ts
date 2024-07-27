@@ -11,9 +11,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                     url: process.env.DATABASE_URL,
                 },
             },
-            // Cấu hình các tùy chọn giao dịch toàn cục
             transactionOptions: {
-                //đảm bảo rằng giao dịch sẽ được thực hiện một cách hoàn toàn cô lập
                 isolationLevel: Prisma.TransactionIsolationLevel.Serializable, 
                 maxWait: 5000, // thời gian tối đa chờ đợi cho giao dịch
                 timeout: 10000, // thời gian tối đa để hoàn thành giao dịch

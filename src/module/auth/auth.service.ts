@@ -17,7 +17,7 @@ export class AuthService {
   ) { }
   // 
   async validateUserAndPassword(email: string, password: string) {
-    const sensitiveUserInfoFields = ['id', 'username', 'email', 'avatar', 'birthday', 'gender', 'confirmed', 'createdAt', 'updatedAt'];
+    const sensitiveUserInfoFields = ['id', 'username', 'email'];
     const userInfo = await this.prisma.user.findFirst({
       where: {
         email: email

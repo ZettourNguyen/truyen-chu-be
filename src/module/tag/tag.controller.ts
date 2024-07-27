@@ -13,17 +13,20 @@ export class TagController {
         const createdTag = await this.tagService.create(createTagDto);
         return createdTag;
     }
-
+    @Get('name/:id')
+    async getName(@Param('id') id: string){
+        return this.tagService.getTagName(+id)
+    }
 
     @Get()
     findAll() {
         return this.tagService.findAll();
     }
 
-    // @Get(':name')
-    // findOne(@Param('name') name: string) {
-    //     return this.tagService.findOne(name);
-    // }
+    @Get('novel/:id')
+    getAllTagIdByNovelId(@Param('id') id: string) {
+        return this.tagService.getTagByNovelId(+id);
+    }
 
     @Patch(':id')
     update(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
