@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-const url = 'http://localhost:3001/auth/verify?'
+const url = process.env.BE_BASE_URL
 
 export async function MailSenderEmailVerify(email: string, username: string, code: string) {
     console.log(`Email: ${process.env.EMAIL}`);

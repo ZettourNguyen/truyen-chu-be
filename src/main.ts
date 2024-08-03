@@ -9,7 +9,7 @@ async function bootstrap() {
   const prismaService = app.get(PrismaService);
   await prismaService.enableShutdownHooks(app);
   app.enableCors();
-  const PORT = process.env.PORT || 3001;
+  const PORT = process.env.PORT || 3000;
   await app.listen(PORT);
 }
 bootstrap();
