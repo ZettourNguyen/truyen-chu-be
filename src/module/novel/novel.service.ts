@@ -11,6 +11,8 @@ import { AuthorService } from '../author/author.service';
 import { formatString, replaceMultipleSpacesAndTrim } from 'src/utils/word';
 import { TagService } from '../tag/tag.service';
 import { ChapterService } from '../chapter/chapter.service';
+import { RoleService } from '../role/role.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class NovelService {
@@ -19,6 +21,7 @@ export class NovelService {
         private readonly authorService: AuthorService,
         private readonly tagService: TagService,
         private readonly chapterService: ChapterService,
+        private readonly roleService: RoleService,
     ) { }
 
     async get10Novel() {
@@ -48,8 +51,6 @@ export class NovelService {
 
         const novelsWithViews = novels.map(novel => {
             const totalViews = novel.chapters.reduce((acc, chapter) => acc + chapter.View.length, 0);
-            const authorNames = novel.authors.map(novelAuthor => novelAuthor.author.nickname).join(', ');
-            const authorIds = novel.authors.map(novelAuthor => novelAuthor.author.id).join(', ')
             return {
                 id: novel.id,
                 title: novel.title,
@@ -60,8 +61,7 @@ export class NovelService {
                 posterId: novel.posterId,
                 posterName: novel.poster.username,
                 tags: novel.tags.map(tags => tags.tag),
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(novelAuthor => novelAuthor.author),
                 createdAt: novel.createdAt.toISOString(),
                 views: totalViews
             };
@@ -74,6 +74,11 @@ export class NovelService {
         // Lấy tất cả các truyện kèm các chương và thông tin tác giả
         const novels = await this.prisma.novel.findMany({
             take: 20,
+            where:{
+                state: {
+                    notIn: ["deleted", "unpublish, pending"]  // notIn: ["deleted", "unpublish"] 
+                }
+            },
             include: {
                 chapters: {
                     include: {
@@ -109,8 +114,7 @@ export class NovelService {
                 id: novel.id,
                 title: novel.title,
                 image: novel.image,
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(novelAuthor => novelAuthor.author),
                 lastChapterCreatedAt: lastChapterCreatedAt,
                 views: totalViews
             };
@@ -182,8 +186,7 @@ export class NovelService {
                 posterId: novel.posterId,
                 posterName: novel.poster.username,
                 tags: novel.tags.map(tag => tag.tag),
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(author => author.author),
                 createdAt: novel.createdAt.toISOString(),
                 views: totalViews
             };
@@ -237,8 +240,7 @@ export class NovelService {
                 posterId: novel.posterId,
                 posterName: novel.poster.username,
                 tags: novel.tags.map(tag => tag.tag),
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(author => author.author),
                 createdAt: novel.createdAt.toISOString(),
                 views: totalViews
             };
@@ -291,8 +293,7 @@ export class NovelService {
                 posterId: novel.posterId,
                 posterName: novel.poster.username,
                 tags: novel.tags.map(tag => tag.tag),
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(author => author.author),
                 createdAt: novel.createdAt.toISOString(),
                 views: totalViews
             };
@@ -349,8 +350,7 @@ export class NovelService {
                 posterId: novel.posterId,
                 posterName: novel.poster.username,
                 tags: novel.tags.map(tag => tag.tag),
-                authorId: authorIds,
-                authorName: authorNames,
+                author: novel.authors.map(author => author.author),
                 createdAt: novel.createdAt.toISOString(),
                 views: totalViews
             };
@@ -404,7 +404,9 @@ export class NovelService {
             throw new BadRequestException('Không đủ novel cho random');
         }
 
-        const novelIds = (await this.prisma.novel.findMany({ select: { id: true } })).map(novel => novel.id);
+        const novelIds = (await this.prisma.novel.findMany({ 
+            select: { id: true } , where:{state:{notIn: ["deleted", "unpublished", "pending"]  }}
+        })).map(novel => novel.id);
         const shuffledIds = this.shuffleArray(novelIds).slice(0, count);
 
         const novels = await this.prisma.novel.findMany({
@@ -438,8 +440,52 @@ export class NovelService {
             posterId: novel.posterId,
             posterName: (await this.userService.getDataUserById(novel.posterId)).username,
             posterAvatar: (await this.userService.getDataUserById(novel.posterId)).avatar,
-            authorId: novel.authors.map(authors => authors.author.id),
-            authorName: novel.authors.map(authors => authors.author.nickname)
+            author: novel.authors.map(novelAuthor => novelAuthor.author)
+        })));
+        return result;
+    }
+
+    async getNovelsByMostLiked() {
+         const novels = await this.prisma.novel.findMany({
+            take: 6,
+            where:{
+                state:{
+                    notIn: ['deleted', 'unpublish', 'pending']
+                }
+            },
+            select: {
+                id: true,
+                title: true,
+                image: true,
+                state: true,
+                description: true,
+                posterId: true,
+                categoryId: true,
+                authors: {
+                    select: {
+                        author: true
+                    }
+                }
+            },
+            orderBy:{
+                followers:{
+                    _count: 'desc' 
+                }
+            }
+
+        });
+        const result = await Promise.all(novels.map(async (novel) => ({
+            id: novel.id,
+            title: novel.title,
+            image: novel.image,
+            state: novel.state,
+            description: novel.description,
+            categoryId: novel.categoryId,
+            categoryName: await this.getCategoryName(novel.categoryId),
+            posterId: novel.posterId,
+            posterName: (await this.userService.getDataUserById(novel.posterId)).username,
+            posterAvatar: (await this.userService.getDataUserById(novel.posterId)).avatar,
+            author: novel.authors.map(novelAuthor => novelAuthor.author)
         })));
         return result;
     }
@@ -470,14 +516,20 @@ export class NovelService {
         return novels;
     }
 
-    async findOneNovelByName(title: string) { // Dùng validation tên truyên 
-        const novel = await this.prisma.novel.findFirst({
-            where: {
-                title
-            }
-        })
-        return novel;
-    }
+    async findOneNovelByName(title: string) {
+          try {
+            const novel = await this.prisma.novel.findFirst({
+                where: {
+                  title: title
+                }
+              });
+              return novel;
+          } catch (error) {
+            throw new BadRequestException(error)
+          }
+
+      }
+      
 
 
     async findManyNovelsByCategoryId(id: number) {
@@ -503,8 +555,29 @@ export class NovelService {
     }
 
     async getAllNovels() {
-        const novels = await this.prisma.novel.findMany();
-        return novels;
+        const novels = await this.prisma.novel.findMany({
+            include:{
+                poster:{select:{
+                    id: true,
+                    username: true
+                }},
+            }
+        });
+
+        const result = await Promise.all(novels.map( async (novel)=> {
+            const chapterCount = await this.countChapterInNovel(novel.id)
+            return{
+                id: novel.id,
+                title: novel.title,
+                state: novel.state,
+                createdAt: novel.createdAt,
+                updatedAt: novel.updatedAt,
+                chapters: chapterCount,
+                posterId: novel.poster.id,
+                posterName: novel.poster.username
+            }
+        }))
+        return result;
     }
 
     async findNovelById(id: number) {
@@ -512,6 +585,17 @@ export class NovelService {
             where: {
                 id: id,
             },
+            include:{
+                chapters:{
+                    select:{
+                        _count: {
+                            select: { View: true } // Tính số lượng lượt xem
+                        }
+                    }
+                },
+                bookmarks: true,
+                ratings: true
+            }
         });
         if (!novel) {
             throw new NotFoundException(`Novel with ID ${id} not found`);
@@ -522,7 +606,7 @@ export class NovelService {
     async getNovelPageById(id: number) {
         const novel = await this.findNovelById(id)
 
-        const [authorOfNovel, categoryName, poster,
+        const [author, categoryName, poster,
             chapter, countChaptersPublishedInLast7Days, tags,] = await Promise.all([
                 this.authorService.findAuthorByNovelId(novel.id),
                 this.getCategoryName(novel.categoryId),
@@ -532,6 +616,14 @@ export class NovelService {
                 this.tagService.getTagByNovelId(novel.id)
             ]);
 
+
+        const totalView = novel.chapters.reduce((total, chapter) => {
+            // Kiểm tra và đảm bảo chapter.View là số
+            const viewCount = chapter._count.View;
+            return total + viewCount;
+        }, 0);
+        const totalBookmarks = novel.bookmarks.length;
+        const totalRatings = novel.ratings.length;
         const result = {
             id: novel.id,
             title: novel.title,
@@ -540,8 +632,7 @@ export class NovelService {
             description: novel.description,
             categoryId: novel.categoryId,
             categoryName,
-            authorId: authorOfNovel.id,
-            authorName: authorOfNovel.nickname,
+            author,
             posterId: novel.posterId,
             posterName: poster.username,
             posterAvatar: poster.avatar,
@@ -549,9 +640,9 @@ export class NovelService {
             updatedAt: novel.updatedAt,
             chapter0: chapter.id,
             countChaptersPublishedInLast7Days,
-            views: 999,
-            numberOfNominations: 888,
-            numberSavedBookmark: 777,
+            views: totalView,
+            numberOfNominations: totalRatings,
+            numberSavedBookmark: totalBookmarks,
             tags
 
         };
@@ -613,7 +704,6 @@ export class NovelService {
         if (!validStates.includes(state)) {
             throw new BadRequestException(`Invalid state value: ${state}`);
         }
-        console.log(state)
 
         const novel = await this.prisma.novel.findUnique({ where: { id } });
         if (!novel) {
@@ -631,20 +721,14 @@ export class NovelService {
 
     }
 
-    async deleteNovel(id: number) {
+    async deleteNovel(id: number, userId:number) {
+        await this.roleService.checkPermission(userId, "Novel")
         // Kiểm tra xem tiểu thuyết có tồn tại không
-        const novel = await this.prisma.novel.findUnique({ where: { id } });
+        const novel = await this.prisma.novel.findUnique({ where: { id, state:"deleted" } });
         if (!novel) {
             throw new NotFoundException(`Novel with id ${id} not found`);
         }
-        await this.prisma.novel.update({
-            where: {
-                id
-            },
-            data: {
-                state: "deleted"
-            }
-        })
+        
         // Xoa cac chapter
         await this.prisma.chapter.deleteMany({
             where: {
@@ -723,7 +807,7 @@ export class NovelService {
 
                     return novel;
                 });
-                console.log("created novel successfull")
+
                 return result;
             } catch (error) {
                 console.log(error)

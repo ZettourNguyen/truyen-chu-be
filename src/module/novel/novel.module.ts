@@ -8,6 +8,9 @@ import { AuthorModule } from '../author/author.module';
 import { TagModule } from '../tag/tag.module';
 import { CategoryModule } from '../category/category.module';
 import { ChapterModule } from '../chapter/chapter.module';
+import { RoleModule } from '../role/role.module';
+import { NotificationModule } from '../notification/notification.module';
+import { FollowService } from '../follow/follow.service';
 
 @Module({
   imports: [
@@ -15,7 +18,9 @@ import { ChapterModule } from '../chapter/chapter.module';
     AuthModule, 
     AuthorModule,
     TagModule,
-    ChapterModule
+    ChapterModule,
+    RoleModule,
+    NotificationModule
   ],
   controllers: [NovelController],
   providers: [NovelService],

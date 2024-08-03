@@ -25,7 +25,7 @@ export class AuthorService {
     }
 
     async findAuthorByNovelId(novelId:number){
-        const authorId = await this.prisma.novelAuthor.findFirst({
+        const authorIds = await this.prisma.novelAuthor.findMany({
             where:{
                 novelId
             },
@@ -33,11 +33,13 @@ export class AuthorService {
                 authorId:true
             }
         })
-        if (!authorId) {
+        if (!authorIds) {
             throw new NotFoundException('No author here') 
         }
-        const author = await this.findById(authorId.authorId)
-        return author
+        const authors = await Promise.all(
+            authorIds.map(async (authorId) => this.findById(authorId.authorId))
+        );
+        return authors
     }
 
     async findById(id: number): Promise<Author | null> {

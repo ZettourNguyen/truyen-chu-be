@@ -8,43 +8,51 @@ import { redisClient } from 'src/redis/connect';
 import { KeyGenerator } from './helper/key';
 import { generateVerificationCode } from './helper/verificationCode';
 import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
+import { RoleService } from '../role/role.service';
 
 @Injectable()
 export class AuthService {
 
   constructor(private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    private readonly roleService : RoleService
   ) { }
   // 
   async validateUserAndPassword(email: string, password: string) {
     const sensitiveUserInfoFields = ['id', 'username', 'email'];
     const userInfo = await this.prisma.user.findFirst({
       where: {
-        email: email
+        email: email,
       }
     })
     if (!userInfo) {
       throw new UnauthorizedException('Email chưa tồn tại')
     }
+    if (userInfo.blacklist) {
+      throw new UnauthorizedException("Đăng nhập thất bại, bạn đã bị cấm!!")
+    }
     if (!comparePassword(password, userInfo.password)) {
       throw new UnauthorizedException('Mật khẩu không chính xác');
     }
+    const roleIds = (await this.roleService.getManyRoleIdOfUserId(userInfo.id)).map(roleId => roleId.roleId)
     const filteredUserInfo = Object.keys(userInfo)
       .filter(key => sensitiveUserInfoFields.includes(key))
       .reduce((obj, key) => {
         obj[key] = userInfo[key];
         return obj;
       }, {} as typeof userInfo);
-    return filteredUserInfo
+    return {...filteredUserInfo, roleIds}
   }
 
-  async signToken(email: string, id: number) {
-    const token = await this.jwtService.signAsync({
-      email: email,
-      id: id,
-    })
-    return { access_token: token }
-  }
+  // async signToken(id: number, username: string, email: string, roleIds: number[]) {
+  //   const token = await this.jwtService.sign({
+  //     id: id,
+  //     username: username,
+  //     email: email,
+  //     roleIds: roleIds
+  //   })
+  //   return { access_token: token }
+  // }
 
 
   async register(register: RegisterDTO) {
@@ -69,9 +77,14 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('Có lỗi trong quá trình tạo tài khoản, vui lòng thử lại.');
     }
+    const role = await this.prisma.userToRole.create({
+      data:{
+        userId: user.id,
+        roleId: 3 // day la id role User
+      }
+    })
     this.sendOTPVerify(user.email, user.username)
-
-    return this.signToken(user.email, user.id)
+    return true
   }
 
   // async sendOTPVerify(email: string, username: string) {

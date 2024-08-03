@@ -7,11 +7,12 @@ import { LocalStrategy } from './strategy/local.strategy';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { UserService } from './user.service';
+import { RoleModule } from '../role/role.module';
 
 @Module({
   imports: [
     PrismaModule, 
-    PassportModule, 
+    PassportModule, RoleModule, 
     JwtModule.register({
       secret: 'jwtsecretkey',
       signOptions: {

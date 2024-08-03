@@ -3,12 +3,14 @@ import { PrismaService } from 'src/Prisma/prisma.service';
 import { capitalizeWords, formatString, replaceMultipleSpacesAndTrim } from 'src/utils/word';
 import { NovelService } from '../novel/novel.service';
 import { count } from 'console';
-import {  CreateCategoryDTO } from './dto/createDTO';
+import { CreateCategoryDTO } from './dto/createDTO';
+import { RoleService } from '../role/role.service';
 
 @Injectable()
 export class CategoryService {
     constructor(private readonly prisma: PrismaService,
-        private readonly novelService: NovelService
+        private readonly novelService: NovelService,
+        private readonly roleService: RoleService
     ) { }
 
     async getCategoryName(id: number) {
@@ -49,7 +51,9 @@ export class CategoryService {
     }
 
     async findAll() {
-        return this.prisma.category.findMany();
+        return this.prisma.category.findMany({
+            orderBy: { name: "asc" }
+        });
     }
 
     async findOne(name: string) {
@@ -58,31 +62,47 @@ export class CategoryService {
         });
     }
 
-    async listNovels(id:number){
+    async listNovels(id: number) {
         const categoryName = await this.getCategoryName(id)
 
         const listNovels = await this.novelService.findManyNovelsByCategoryId(id)
 
-        return{ categoryName, count: listNovels.length, listNovels}
+        return { categoryName, count: listNovels.length, listNovels }
     }
 
-    async update(id: number, name: string, description: string) {
+    async update(id: number, userId: number, name: string, description: string) {
+        await this.roleService.checkPermission(userId, "Category")
         const inputName = replaceMultipleSpacesAndTrim(formatString(name))  //
-        await this.validateCategoryName(inputName);
-
         const nameFormatted = capitalizeWords(inputName)
+        const category = await this.prisma.category.findFirst({
+            where: { name: inputName }
+        })
+        if (!category) {
+            await this.validateCategoryName(inputName);
+        }
+        const inputDescription = replaceMultipleSpacesAndTrim(formatString(description))  //
+
         return this.prisma.category.update({
             where: { id },
             data: {
                 name: nameFormatted,
-                description: description
+                description: inputDescription
             },
         });
     }
 
-    async remove(id: number) {
+    async remove(userId: number, categoryId: number) {
+        await this.roleService.checkPermission(userId, "Category")
+        const category = await this.prisma.category.findUnique({
+            where: {
+                id: categoryId
+            }
+        })
+        if (!category) {
+            throw new NotFoundException(`Không tồn tại thể loại ${category.name}`)
+        }
         return this.prisma.category.delete({
-            where: { id },
+            where: { id: categoryId },
         });
     }
 
@@ -90,5 +110,5 @@ export class CategoryService {
     // =============================== CategoryName service ==================================
     // =============================== CategoryName service ==================================
 
-    
+
 }

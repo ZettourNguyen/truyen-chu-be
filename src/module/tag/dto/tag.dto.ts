@@ -1,9 +1,11 @@
 export interface CreateTagDto {
+  userId: number
   name: string;
 }
 
 export interface UpdateTagDto {
-  name?: string;
+  userId: string
+  name: string;
 }
 
 

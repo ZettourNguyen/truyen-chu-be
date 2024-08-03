@@ -5,10 +5,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { NovelService } from '../novel/novel.service';
 import { ChapterCreateDto } from './dto';
+import { NotificationService } from '../notification/notification.service';
+import { FollowService } from '../follow/follow.service';
+import { title } from 'process';
+import { Int } from '@nestjs/graphql';
 
 @Injectable()
 export class ChapterService {
     constructor(private readonly prisma: PrismaService,
+        private readonly notificationService: NotificationService,
+        private readonly followService: FollowService
     ) { }
 
     async getChapterIndexList(novelId: number): Promise<number[]> {
@@ -38,57 +44,53 @@ export class ChapterService {
         })
         const indexList = await this.getChapterIndexList(novelId);
         if (!indexList) {
-            return { novelId, novelTitle: novel.title, nextIndex:0 }
+            return { novelId, novelTitle: novel.title, nextIndex: 0 }
         }
         // Sắp xếp danh sách index và tìm giá trị lớn nhất
-    indexList.sort((a, b) => a - b);
-    const maxIndex = Math.max(...indexList);
+        indexList.sort((a, b) => a - b);
+        const maxIndex = Math.max(...indexList);
 
-    // Tạo dãy số liên tiếp từ 0 đến maxIndex
-    const allIndexes = new Set(indexList);
-    const missingIndexes: number[] = [];
+        // Tạo dãy số liên tiếp từ 0 đến maxIndex
+        const allIndexes = new Set(indexList);
+        const missingIndexes: number[] = [];
 
-    for (let i = 0; i <= maxIndex; i++) {
-        if (!allIndexes.has(i)) {
-            missingIndexes.push(i);
-        }
-    }
-
-    if (missingIndexes.length > 0) {
-        // Nếu có số bị thiếu, giảm giá trị index hiện tại để làm cho dãy số liên tục
-        await this.prisma.chapter.updateMany({
-            where: {
-                AND: [
-                    { novelId },
-                    { index: { gte: missingIndexes[0] } }
-                ]
-            },
-            data: {
-                index: {
-                    decrement: 1
-                }
+        for (let i = 0; i <= maxIndex; i++) {
+            if (!allIndexes.has(i)) {
+                missingIndexes.push(i);
             }
-        });
-        
-        // Lấy giá trị index mới là số lớn nhất trong dãy liên tiếp
-        return { novelId, novelTitle: novel.title, nextIndex: missingIndexes[0] };
-    } else {
-        // Nếu không có số bị thiếu, trả về index tiếp theo là maxIndex + 1
-        return { novelId, novelTitle: novel.title, nextIndex: maxIndex + 1 };
-    }
-        
+        }
+
+        if (missingIndexes.length > 0) {
+            // Nếu có số bị thiếu, giảm giá trị index hiện tại để làm cho dãy số liên tục
+            await this.prisma.chapter.updateMany({
+                where: {
+                    AND: [
+                        { novelId },
+                        { index: { gte: missingIndexes[0] } }
+                    ]
+                },
+                data: {
+                    index: {
+                        decrement: 1
+                    }
+                }
+            });
+
+            // Lấy giá trị index mới là số lớn nhất trong dãy liên tiếp
+            return { novelId, novelTitle: novel.title, nextIndex: missingIndexes[0] };
+        } else {
+            // Nếu không có số bị thiếu, trả về index tiếp theo là maxIndex + 1
+            return { novelId, novelTitle: novel.title, nextIndex: maxIndex + 1 };
+        }
+
     }
 
     // Tạo một chapter mới
     async create(data: ChapterCreateDto): Promise<any> {
         const { content, novelId, ...rest } = data;
         const indexList = await this.getChapterIndexList(novelId);
-        console.log(`data ${data.index} ${data.title}`)
-
-        console.log(`rest.index before handle ${rest.index}`)
-
         // neu chua co chapter nao
-        if (indexList.length===0) {
+        if (indexList.length === 0) {
             rest.index = 0
         }
         else {
@@ -99,7 +101,7 @@ export class ChapterService {
                 await this.prisma.chapter.updateMany({
                     where: {
                         AND: [
-                            { novelId},
+                            { novelId },
                             { index: { gte: rest.index } }
                         ]
                     },
@@ -114,7 +116,6 @@ export class ChapterService {
                 rest.index = maxIndex + 1;
             }
         }
-        console.log(`rest.index after handle ${rest.index}`)
 
         //Mã hóa content
 
@@ -139,7 +140,6 @@ export class ChapterService {
         // Đổi tên file để dễ truy xuất
         const finalFilePath = path.join(dirPath, `chapter_${chapter.id}.txt`);
         fs.renameSync(tempFilePath, finalFilePath);
-        console.log(finalFilePath)
 
         //update content chapter = filepath
         const result = await this.prisma.chapter.update({
@@ -148,6 +148,27 @@ export class ChapterService {
                 content: finalFilePath,
             },
         });
+
+        const userIds = await this.followService.getAllUsersFollowingNovel(result.novelId)
+        //create notification
+
+        const novelName = await this.prisma.novel.findUnique({
+            where:{
+                id: novelId
+            },
+            select:{
+                title: true
+            }
+        })
+
+        const dataAddNotification = {
+            title: "Truyện bạn đang theo dõi đã có chương mới",
+            type: "unseen",
+            content: `Truyện <strong>${novelName.title}</strong> đã có chương mới`,
+            userIds: userIds.map(userId => userId.userId)
+        }
+        await this.notificationService.createManyNotification(dataAddNotification)
+
         return result;
     }
 
@@ -157,7 +178,7 @@ export class ChapterService {
         const chapter = await this.prisma.chapter.findUnique({
             where: { id, isPublish: true },
         });
-    
+
         // Nếu không tìm thấy chapter, throw NotFoundException
         if (!chapter) {
             throw new NotFoundException(`Chapter with id ${id} not found`);
@@ -167,18 +188,17 @@ export class ChapterService {
                 id: chapter.novelId
             }
         })
-    
+
         // Đường dẫn tới file .txt của chapter
         const dirPath = path.join('C:', 'uploads', chapter.novelId.toString());
         const finalFilePath = path.join(dirPath, `chapter_${chapter.id}.txt`);
-    
         // Đọc nội dung từ file .txt
         const fileContent = fs.readFileSync(finalFilePath, 'utf-8');
         chapter.content = fileContent;
-    
+
         // Tìm chỉ số của chapter hiện tại
         const currentIndex = chapter.index;
-    
+
         // Tìm preIndex và nextIndex
         const previousChapter = await this.prisma.chapter.findFirst({
             where: {
@@ -187,7 +207,7 @@ export class ChapterService {
             },
             orderBy: { index: 'desc' },
         });
-    
+
         const nextChapter = await this.prisma.chapter.findFirst({
             where: {
                 novelId: chapter.novelId,
@@ -195,7 +215,7 @@ export class ChapterService {
             },
             orderBy: { index: 'asc' },
         });
-    
+
         // Gắn preIndex và nextIndex vào chapter
         const chapterWithIndexes = {
             ...chapter,
@@ -203,10 +223,10 @@ export class ChapterService {
             preIndex: previousChapter ? previousChapter.id : null,
             nextIndex: nextChapter ? nextChapter.id : null,
         };
-    
+
         return chapterWithIndexes;
     }
-    
+
 
     async findIdChapterIndexZeroOfNovel(novelId) {
         const chapter = await this.prisma.chapter.findFirst({
@@ -215,9 +235,9 @@ export class ChapterService {
                 index: 0
             },
         })
-        if (!chapter) {
-            throw new NotFoundException(`no chapter index 0 of novelId ${novelId}`)
-        }
+        // if (!chapter) {
+        //     throw new NotFoundException(`no chapter index 0 of novelId ${novelId}`)
+        // }
         return chapter
     }
 
@@ -271,12 +291,12 @@ export class ChapterService {
                 index: 'asc', // Sắp xếp theo chỉ số tăng dần
             },
         });
-    
+
         // Kiểm tra nếu không có chương nào được tìm thấy
         if (!chapters || chapters.length === 0) {
             throw new NotFoundException(`Không có chapter nào của truyện ${novelId}`);
         }
-    
+
         const chaptersWithViewCount = chapters.map(chapter => ({
             ...chapter,
             views: chapter._count.View // Tính số lượng lượt xem
@@ -284,9 +304,9 @@ export class ChapterService {
         const result = chaptersWithViewCount.map(({ _count, ...rest }) => rest);
         return result;
     }
-    
 
-    
+
+
     // async updateIsPublish(id: number, data: Prisma.ChapterUpdateInput): Promise<Chapter> {
     //     return this.prisma.chapter.update({
     //         where: { id },
@@ -299,6 +319,16 @@ export class ChapterService {
             data,
         });
     }
+    
+    async updateIsPublish(id: number, data: Prisma.ChapterUpdateInput): Promise<Chapter> {
+        return this.prisma.chapter.update({
+            where: { id },
+            data: {
+                ...data,
+                createdAt: new Date(), // Update `createdAt` to current time
+            },
+        });
+    } 
 
     // them status cho chapter, xoa lan 1 = đưa vào thùng rác, xóa lần 2 là xóa vĩnh viễn.
     // thùng rác: sau khoảng 1 thời gian thì server tự động xóa

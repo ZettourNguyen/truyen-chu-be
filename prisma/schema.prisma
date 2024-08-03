@@ -73,6 +73,22 @@ model Chapter {
 }
 
 
+// model Comment {
+//   id        Int       @id @default(autoincrement())
+//   novelId   Int
+//   content   String    @db.Text
+//   createdAt DateTime? @default(now()) @db.Timestamp(0)
+//   updatedAt DateTime? @default(now()) @db.Timestamp(0)
+//   userId    Int
+
+//   user     user    @relation(fields: [userId], references: [id])
+//   novel    Novel   @relation(fields: [novelId], references: [id])
+
+//   @@index([novelId], map: "comment_ibfk_1")
+//   @@index([userId], map: "comment_ibfk_2")
+//   @@map("comment")
+//   Report Report[]
+// }
 model Comment {
   id        Int       @id @default(autoincrement())
   novelId   Int
@@ -80,9 +96,12 @@ model Comment {
   createdAt DateTime? @default(now()) @db.Timestamp(0)
   updatedAt DateTime? @default(now()) @db.Timestamp(0)
   userId    Int
+  parentId  Int?      // Thêm trường này để lưu ID của bình luận cha
 
-  user     user    @relation(fields: [userId], references: [id])
-  novel    Novel   @relation(fields: [novelId], references: [id])
+  user      user      @relation(fields: [userId], references: [id])
+  novel     Novel     @relation(fields: [novelId], references: [id])
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
 
   @@index([novelId], map: "comment_ibfk_1")
   @@index([userId], map: "comment_ibfk_2")

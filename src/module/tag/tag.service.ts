@@ -2,10 +2,12 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { PrismaService } from 'src/Prisma/prisma.service';
 import { CreateTagDto, DeleteNovelTagDto, NovelTagDto, UpdateTagDto } from './dto/tag.dto';
 import {capitalizeWords, formatString, replaceMultipleSpacesAndTrim} from '../../utils/word';
+import { RoleService } from '../role/role.service';
 
 @Injectable()
 export class TagService {
   constructor(private readonly prisma: PrismaService,
+    private readonly roleService: RoleService
   ) { }
 
   async getTagName(id: number) {
@@ -26,18 +28,18 @@ export class TagService {
         name: name,
       },
     });
-    console.log(tagName)
 
     if (tagName) {
-      throw new ForbiddenException(`Tag with name '${name}' already exists.`);
+      throw new ForbiddenException(`Tên thẻ '${name}' đã tồn tại.`);
     }
   }
   // create tag
   async create(createTagDto: CreateTagDto) {
-    const inputName = replaceMultipleSpacesAndTrim(formatString(createTagDto.name))  //
+    await this.roleService.checkPermission(createTagDto.userId, "Tag")
+    const inputName = replaceMultipleSpacesAndTrim((createTagDto.name))  //
+    const name = capitalizeWords(inputName)
     await this.validateTagName(inputName); 
 
-    const name = capitalizeWords(inputName)
     return this.prisma.tag.create({
       data: {
         name: name,
@@ -47,7 +49,11 @@ export class TagService {
 
 
   async findAll() {
-    return this.prisma.tag.findMany();
+    return this.prisma.tag.findMany({
+      orderBy:{
+        name: 'asc'
+      }
+    });
   }
 
   async findOne(name: string) {
@@ -57,15 +63,23 @@ export class TagService {
   }
 
   async update(id: number, updateTagDto: UpdateTagDto) {
+    await this.roleService.checkPermission(+updateTagDto.userId, "Tag")
+    const inputName = replaceMultipleSpacesAndTrim((updateTagDto.name))  //
+    const name = capitalizeWords(inputName)
+    await this.validateTagName(inputName); 
+
     return this.prisma.tag.update({
       where: { id },
-      data: updateTagDto,
+      data: {
+        name: updateTagDto.name
+      },
     });
   }
 
-  async remove(id: number) {
+  async remove(userId: number, tagId: number) {
+    await this.roleService.checkPermission(userId, "Tag")
     return this.prisma.tag.delete({
-      where: { id },
+      where: { id: tagId },
     });
   }
 
@@ -175,11 +189,6 @@ export class TagService {
         },
       },
     });
-    // if (delNovelTag > 0) {
-    //   console.log(`Deleted ${delNovelTag} novel tag(s) successfully.`);
-    // } else {
-    //   console.log(`No novel tag deleted.`);
-    // }
     return delNovelTag
   }
 

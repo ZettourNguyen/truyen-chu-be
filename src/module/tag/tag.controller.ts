@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, HttpStatus, ConflictException, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpException, HttpStatus, ConflictException, UseFilters, Query } from '@nestjs/common';
 import { TagService } from './tag.service';
 import { CreateTagDto, UpdateTagDto } from './dto/tag.dto';
 import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
@@ -14,7 +14,7 @@ export class TagController {
         return createdTag;
     }
     @Get('name/:id')
-    async getName(@Param('id') id: string){
+    async getName(@Param('id') id: string) {
         return this.tagService.getTagName(+id)
     }
 
@@ -33,8 +33,11 @@ export class TagController {
         return this.tagService.update(+id, updateTagDto);
     }
 
-    @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.tagService.remove(+id);
+    @Delete(':userId')
+    remove(
+        @Param('userId') userId: string,
+        @Query('tagId') tagId: string) 
+        {
+        return this.tagService.remove(+userId, +tagId);
     }
 }

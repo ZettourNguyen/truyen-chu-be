@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Body, UseFilters, Param } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, UseFilters, Param, Delete } from '@nestjs/common';
 import { HistoryService } from './history.service';
 import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
 
@@ -9,20 +9,18 @@ export class HistoryController {
 
     @Get('check')
     async checkHistory(
-        @Query('userId') userId: number,
-        @Query('chapterId') chapterId: number,
+        @Body() userId: { userId: number; novelId: number }
     ) {
-        const exists = await this.historyService.checkHistoryExists(userId, chapterId);
-        return { exists: !!exists };
+        const histories = await this.historyService.checkHistoryOfNovelExists(userId.userId, userId.novelId);
+        return histories
     }
 
-    // @Post('add')
-    // async addHistory(
-    //     @Body() body: { userId: number; chapterId: number }
-    // ) {
-    //     await this.historyService.addOrUpdateNovelHistory(body.userId, body.chapterId);
-    //     return { success: true };
-    // }
+    @Post('add')
+    async addHistory(
+        @Body() body: { userId: number; chapterId: number }
+    ) {
+        return await this.historyService.addOrUpdateNovelHistory(body.userId, body.chapterId);
+    }
 
     @Get(':id')
     async getHistory(
@@ -30,5 +28,11 @@ export class HistoryController {
     ) {
         const result = await this.historyService.getUserHistory(+id);
         return result;
+    }
+    @Delete('remove/:id')
+    async rmHistory(
+        @Param('id') id: string, 
+    ) {
+        return await this.historyService.deleteHistory(+id);
     }
 }

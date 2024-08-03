@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, NotFoundException, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, NotFoundException, UseFilters, Query } from '@nestjs/common';
 import { NovelService } from './novel.service';
 import { CreateNovel } from './dto/create.novel.dto';
 import { UpdateNovelDTO, UpdateNovelImageDto, UpdateStateDto } from './dto/update.novel.dto';
@@ -7,7 +7,7 @@ import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
 @Controller('novel')
 @UseFilters(HttpExceptionFilter)
 export class NovelController {
-    constructor(private readonly novelService: NovelService) {}
+    constructor(private readonly novelService: NovelService) { }
 
     @Get('get10Novel')
     async get10Novel() {
@@ -30,10 +30,21 @@ export class NovelController {
         return this.novelService.getNovelsByRandom()
     }
 
+    @Get('/follow/6')// 6 cai
+    async getNovelsByMostLiked() {
+        return this.novelService.getNovelsByMostLiked()
+    }
+
     @Get('list/:title')
     async novelByName(@Param('title') title: string) {
         const novel = await this.novelService.findManyNovelByName(title);
         return novel;
+    }
+
+    @Get('/novel/getIdByName')
+    async getIdByName(@Query('title') title: string) {
+        const novel = await this.novelService.findOneNovelByName(title)
+        return novel.id
     }
 
     @Get()
@@ -57,20 +68,15 @@ export class NovelController {
     async findNovelsByTag(@Param('id') id: number) {
         return this.novelService.findNovelsByTag(+id)
     }
-
-
-
     @Get('/me/:id')
     async findNovelsByMe(@Param('id') id: number) {
         return this.novelService.findNovelsByMe(+id)
     }
 
-    
-    
     @Post()
     async createNovel(@Body() createNovelDto: { data: CreateNovel; authorNameInInput: string, tagsId: JSON }) {
-      const { data, authorNameInInput, tagsId } = createNovelDto;
-      return this.novelService.createNovelWithTransaction(data, authorNameInInput, tagsId);
+        const { data, authorNameInInput, tagsId } = createNovelDto;
+        return this.novelService.createNovelWithTransaction(data, authorNameInInput, tagsId);
     }
 
     @Put('image')
@@ -82,7 +88,7 @@ export class NovelController {
     @Put(':id')
     async updateNovel(@Param('id') id: number, @Body() updateNovelDto: UpdateNovelDTO) {
         return this.novelService.updateNovel(+id, updateNovelDto);
-    }   
+    }
 
     @Put('state/:id')
     async updateStateNovel(
@@ -91,11 +97,12 @@ export class NovelController {
     ) {
         const { state } = updateStateDto; // Truy xuất state từ DTO
         return this.novelService.updateStateNovel(+id, state);
-    }  
+    }
 
     @Delete(':id')
-    async deleteNovel(@Param('id') id: number) {
-        return this.novelService.deleteNovel(+id);
+    async deleteNovel(@Param('id') id: number,
+        @Body() userId: number) {
+        return this.novelService.deleteNovel(+id, +userId);
     }
 
 

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException, UseFilters, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
@@ -7,9 +7,11 @@ import { GetUser } from 'src/decorator/get-user.decorator';
 import { RegisterDTO } from './dto/register.dto';
 import { redisClient } from 'src/redis/connect';
 import { UserService } from './user.service';
-import { UserUpdateImage } from './dto/user.dto';
+import { UpdateIsBlackList, UserUpdateImage } from './dto/user.dto';
+import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
 
 @Controller('auth')
+@UseFilters(HttpExceptionFilter)
 export class AuthController {
 
     constructor(
@@ -39,9 +41,16 @@ export class AuthController {
         return result
     }
 
+    @Patch('block')
+    blockUser(@Body() data: UpdateIsBlackList){
+        const result = this.userService.changeBlackList(data)
+        return result
+    }
+
     @Post('register')
     register(@Body() registerData: RegisterDTO) {
-        return this.authService.register(registerData);
+        const result = this.authService.register(registerData);
+        return result; 
     }
 
     @Get('verify')
@@ -74,7 +83,12 @@ export class AuthController {
          
     @Get('name/:id')
     async getName(@Param('id') id: string){
-        const user = await this.userService.getDataUserById(+id)
+        const user = await this.userService.getUserName(+id)
         return user.username
+    }
+    @Get('user/:id')
+    async getAll(@Param('id') id: string){
+        const user = await this.userService.getAll(+id)
+        return user
     }
 }

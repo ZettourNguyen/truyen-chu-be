@@ -12,3 +12,8 @@ export interface UserUpdateImage{
     id:string
     avatar:string
 }
+
+export interface UpdateIsBlackList{
+    userId: number
+    userBlockId: number
+}

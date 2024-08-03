@@ -17,7 +17,7 @@ export class ChapterController {
 
     @Put(':id')
     async updateIsPublish(@Param("id") id:string, @Body()data: Prisma.ChapterUpdateInput ){
-        return this.chapterService.update(+id, data)
+        return this.chapterService.updateIsPublish(+id, data)
     }
 
     @Get(':id')
