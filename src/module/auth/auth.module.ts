@@ -14,9 +14,9 @@ import { RoleModule } from '../role/role.module';
     PrismaModule, 
     PassportModule, RoleModule, 
     JwtModule.register({
-      secret: 'jwtsecretkey',
+      secret: process.env.ACCESS_TOKEN_SECRET || 'jwtsecretkey',
       signOptions: {
-        expiresIn: '1h',
+        expiresIn: process.env.ACCESS_TOKEN_LIFE || "1d",
       },
     })
   ], 
