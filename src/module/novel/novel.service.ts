@@ -12,7 +12,6 @@ import { formatString, replaceMultipleSpacesAndTrim } from 'src/utils/word';
 import { TagService } from '../tag/tag.service';
 import { ChapterService } from '../chapter/chapter.service';
 import { RoleService } from '../role/role.service';
-import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class NovelService {
@@ -76,7 +75,7 @@ export class NovelService {
             take: 20,
             where:{
                 state: {
-                    notIn: ["deleted", "unpublish, pending"]  // notIn: ["deleted", "unpublish"] 
+                    notIn: ['unpublished', 'deleted', 'pending']  // notIn: ["deleted", "unpublish"] 
                 }
             },
             include: {
@@ -105,10 +104,6 @@ export class NovelService {
             const listTime = novel.chapters.map(chapter => new Date(chapter.createdAt).getTime());
             const lastTime = Math.max(...listTime);
             const lastChapterCreatedAt = new Date(lastTime).toISOString();
-
-            // Lấy tên và ID của tác giả
-            const authorNames = novel.authors.map(novelAuthor => novelAuthor.author?.nickname).join(', ');
-            const authorIds = novel.authors.map(novelAuthor => novelAuthor.author?.id).join(', ');
 
             return {
                 id: novel.id,

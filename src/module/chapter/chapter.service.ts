@@ -3,18 +3,19 @@ import { PrismaService } from 'src/Prisma/prisma.service';
 import { Chapter, Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { NovelService } from '../novel/novel.service';
 import { ChapterCreateDto } from './dto';
 import { NotificationService } from '../notification/notification.service';
 import { FollowService } from '../follow/follow.service';
-import { title } from 'process';
-import { Int } from '@nestjs/graphql';
+import { FirebaseStorageService } from 'src/firebase/firebase.service';
+import { randomUUID } from 'crypto';
+import * as os from 'os';
 
 @Injectable()
 export class ChapterService {
     constructor(private readonly prisma: PrismaService,
         private readonly notificationService: NotificationService,
-        private readonly followService: FollowService
+        private readonly followService: FollowService,
+        private readonly firebaseStorageService: FirebaseStorageService,
     ) { }
 
     async getChapterIndexList(novelId: number): Promise<number[]> {
@@ -120,56 +121,47 @@ export class ChapterService {
         //Mã hóa content
 
         //Mã hóa content
-
-        // Tạo file .txt với nội dung từ content
-        const dirPath = path.join('C:', 'uploads', novelId.toString());
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-        const tempFilePath = path.join(dirPath, `chapter_temp.txt`);
+        // Tạo file tạm thời với nội dung từ content
+        const tempFileName = `chapter_${randomUUID()}.txt`;
+        const tempFilePath = path.join(os.tmpdir(), tempFileName);
         fs.writeFileSync(tempFilePath, content);
-        // Lưu content vào cơ sở dữ liệu
+
+        // Tạo thư mục trên Firebase Storage
+        const firebaseFolderPath = `Truyen/${novelId}/${rest.index}`;
+        const firebaseFilePath = `${firebaseFolderPath}/${tempFileName}`;
+
+        // Upload file lên Firebase Storage
+        const firebaseFileUrl = await this.firebaseStorageService.uploadFile(tempFilePath, firebaseFilePath);
+
+        // Xóa file tạm thời
+        fs.unlinkSync(tempFilePath);
+
+        // Tạo chương mới trong cơ sở dữ liệu với URL của file trên Firebase Storage
         const chapter = await this.prisma.chapter.create({
             data: {
                 ...rest,
                 novelId,
-                content: "chapter_temp",
+                content: firebaseFileUrl,
             },
         });
 
-        // Đổi tên file để dễ truy xuất
-        const finalFilePath = path.join(dirPath, `chapter_${chapter.id}.txt`);
-        fs.renameSync(tempFilePath, finalFilePath);
+        const userIds = await this.followService.getAllUsersFollowingNovel(chapter.novelId);
 
-        //update content chapter = filepath
-        const result = await this.prisma.chapter.update({
-            where: { id: chapter.id },
-            data: {
-                content: finalFilePath,
-            },
-        });
-
-        const userIds = await this.followService.getAllUsersFollowingNovel(result.novelId)
-        //create notification
-
+        // Tạo thông báo
         const novelName = await this.prisma.novel.findUnique({
-            where:{
-                id: novelId
-            },
-            select:{
-                title: true
-            }
-        })
+            where: { id: novelId },
+            select: { title: true },
+        });
 
         const dataAddNotification = {
             title: "Truyện bạn đang theo dõi đã có chương mới",
             type: "unseen",
             content: `Truyện <strong>${novelName.title}</strong> đã có chương mới`,
-            userIds: userIds.map(userId => userId.userId)
-        }
-        await this.notificationService.createManyNotification(dataAddNotification)
+            userIds: userIds.map(userId => userId.userId),
+        };
+        await this.notificationService.createManyNotification(dataAddNotification);
 
-        return result;
+        return chapter;
     }
 
     // Phục vụ việc đọc truyện
@@ -189,12 +181,12 @@ export class ChapterService {
             }
         })
 
-        // Đường dẫn tới file .txt của chapter
-        const dirPath = path.join('C:', 'uploads', chapter.novelId.toString());
-        const finalFilePath = path.join(dirPath, `chapter_${chapter.id}.txt`);
-        // Đọc nội dung từ file .txt
-        const fileContent = fs.readFileSync(finalFilePath, 'utf-8');
-        chapter.content = fileContent;
+        // // Đường dẫn tới file .txt của chapter
+        // const dirPath = path.join('C:', 'uploads', chapter.novelId.toString());
+        // const finalFilePath = path.join(dirPath, `chapter_${chapter.id}.txt`);
+        // // Đọc nội dung từ file .txt
+        // const fileContent = fs.readFileSync(finalFilePath, 'utf-8');
+        // chapter.content = fileContent;
 
         // Tìm chỉ số của chapter hiện tại
         const currentIndex = chapter.index;
@@ -305,21 +297,13 @@ export class ChapterService {
         return result;
     }
 
-
-
-    // async updateIsPublish(id: number, data: Prisma.ChapterUpdateInput): Promise<Chapter> {
-    //     return this.prisma.chapter.update({
-    //         where: { id },
-    //         data,
-    //     });
-    // }
     async update(id: number, data: Prisma.ChapterUpdateInput): Promise<Chapter> {
         return this.prisma.chapter.update({
             where: { id },
             data,
         });
     }
-    
+
     async updateIsPublish(id: number, data: Prisma.ChapterUpdateInput): Promise<Chapter> {
         return this.prisma.chapter.update({
             where: { id },
@@ -328,7 +312,7 @@ export class ChapterService {
                 createdAt: new Date(), // Update `createdAt` to current time
             },
         });
-    } 
+    }
 
     // them status cho chapter, xoa lan 1 = đưa vào thùng rác, xóa lần 2 là xóa vĩnh viễn.
     // thùng rác: sau khoảng 1 thời gian thì server tự động xóa

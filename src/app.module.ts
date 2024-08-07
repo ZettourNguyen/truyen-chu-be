@@ -48,6 +48,8 @@ import { ViewController } from './module/view/view.controller';
 import { ReportModule } from './module/report/report.module';
 import { ReportController } from './module/report/report.controller';
 import { ReportService } from './module/report/report.service';
+import { FirebaseModule } from './firebase/firebase.module';
+import { FirebaseStorageService } from './firebase/firebase.service';
 
 @Module({
   imports: [AuthModule, PrismaModule,
@@ -66,13 +68,13 @@ import { ReportService } from './module/report/report.service';
     // })
     // ,
     NovelModule, TagModule, AuthorModule, CategoryModule, ChapterModule, HistoryModule, CommentModule, RoleModule, 
-    BookmarkModule, FollowModule, NotificationModule, RatingModule, ReportModule
+    BookmarkModule, FollowModule, NotificationModule, RatingModule, ReportModule, FirebaseModule
   ],
   controllers: [NovelController, TagController, AuthController, AuthorController, RoleController, ReportController,
     BookmarkController, FollowController, NotificationController, RatingController, ViewController,
     CategoryController, ChapterController, HistoryController, CommentController],
   providers: [AuthService, NovelService, TagService, AuthorService, UserService, RoleService,ReportService,
-    BookmarkService, FollowService, NotificationService, RatingService, ViewService,
+    BookmarkService, FollowService, NotificationService, RatingService, ViewService, FirebaseStorageService,
     CategoryService, ChapterService, HistoryService, CommentService],
 })
 export class AppModule { }

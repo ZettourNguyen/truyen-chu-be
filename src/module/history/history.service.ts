@@ -76,25 +76,24 @@ export class HistoryService {
                 updatedAt: "desc"
             }
         });
-        const result = historiesDetail.map(
-            historieDetail => {
-                return {
-                    id: historieDetail.id,
-                    novelId: historieDetail.chapter.novel.id,
-                    novelTitle: historieDetail.chapter.novel.title,
-                    novelImage: historieDetail.chapter.novel.image,
-                    novelDescription: historieDetail.chapter.novel.description,
-                    novelState: historieDetail.chapter.novel.state,
-                    author: historieDetail.chapter.novel.authors,
-                    chapterId: historieDetail.chapterId,
-                    chapterTitle: historieDetail.chapter.title,
-                    createdAt: historieDetail.createdAt,
-                    updatedAt: historieDetail.updatedAt,
-                    userId,
-                }
+        const unvalidStates = ['unpublished', 'deleted', 'pending'];
 
-            }
-        )
+        const result = historiesDetail
+            .filter(historieDetail => !unvalidStates.includes(historieDetail.chapter.novel.state))
+            .map(historieDetail => ({
+                id: historieDetail.id,
+                novelId: historieDetail.chapter.novel.id,
+                novelTitle: historieDetail.chapter.novel.title,
+                novelImage: historieDetail.chapter.novel.image,
+                novelDescription: historieDetail.chapter.novel.description,
+                novelState: historieDetail.chapter.novel.state,
+                author: historieDetail.chapter.novel.authors,
+                chapterId: historieDetail.chapterId,
+                chapterTitle: historieDetail.chapter.title,
+                createdAt: historieDetail.createdAt,
+                updatedAt: historieDetail.updatedAt,
+                userId,
+            }));
         return result
     }
 
@@ -126,9 +125,9 @@ export class HistoryService {
 
         return result;
     }
-    async deleteHistory( id: number){
+    async deleteHistory(id: number) {
         return await this.prisma.history.delete({
-            where:{
+            where: {
                 id
             }
         })
