@@ -6,7 +6,6 @@ import { ChapterCreateDto } from './dto';
 
 
 @Controller('chapter')
-@UseFilters(HttpExceptionFilter)
 export class ChapterController {
     constructor(private chapterService: ChapterService) {}
 
