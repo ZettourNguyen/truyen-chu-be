@@ -445,7 +445,7 @@ export class NovelService {
             take: 6,
             where:{
                 state:{
-                    notIn: ['deleted', 'unpublish', 'pending']
+                    notIn: ['deleted', 'unpublished', 'pending']
                 }
             },
             select: {
