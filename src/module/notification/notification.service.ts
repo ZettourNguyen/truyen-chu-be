@@ -6,15 +6,27 @@ import { RoleService } from '../role/role.service';
 @Injectable()
 export class NotificationService {
     constructor( private readonly prisma: PrismaService,
-        private readonly roleService: RoleService
     ){}
 
     async addNotification(data: CreateNotificationDto){
+        
         const notification = await this.prisma.notification.create({
             data
         })
         return notification
     }
+
+    async changeStateIsSeen(userId: number) {
+        const changeState = await this.prisma.notification.updateMany({
+          where: {
+            userId: userId, // Cung cấp giá trị đúng cho điều kiện `where`
+          },
+          data: {
+            type: "seen"
+          }
+        });
+        return true
+      }
 
    async createManyNotification(data: CreateManyNotificationDto  ) {
     const notificationsData = data.userIds.map(userId => ({
@@ -33,7 +45,6 @@ export class NotificationService {
 
     async addNotificationByAdmin(senderId: number, data: CreateNotificationByAdminDto){
         //getAll userId
-        await this.roleService.checkPermission(senderId ,"Admin")
         const allUserId = await this.prisma.user.findMany({
             where:{
                 blacklist: false

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseFilters } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseFilters } from '@nestjs/common';
 import { ChapterService } from './chapter.service'; // Điều chỉnh đường dẫn import tương ứng
 import { Prisma } from '@prisma/client';
 import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
@@ -38,6 +38,11 @@ export class ChapterController {
     @Get('publish/:novelId')
     async getNextIndexChapter(@Param("novelId") novelId:string){
         return this.chapterService.getNextIndexChapter(+novelId)
+    }
+
+    @Delete(':id')
+    async delete(@Param('id') id:number){
+        return this.chapterService.remove(+id)
     }
 
     

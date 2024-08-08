@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/Prisma/prisma.service';
 import { Chapter, Prisma } from '@prisma/client';
 import * as fs from 'fs';
@@ -9,6 +9,7 @@ import { FollowService } from '../follow/follow.service';
 import { FirebaseStorageService } from 'src/firebase/firebase.service';
 import { randomUUID } from 'crypto';
 import * as os from 'os';
+import { deleteObject, FirebaseStorage, ref } from 'firebase/storage';
 
 @Injectable()
 export class ChapterService {
@@ -16,6 +17,7 @@ export class ChapterService {
         private readonly notificationService: NotificationService,
         private readonly followService: FollowService,
         private readonly firebaseStorageService: FirebaseStorageService,
+        @Inject('FIREBASE_STORAGE') private readonly storage: FirebaseStorage,
     ) { }
 
     async getChapterIndexList(novelId: number): Promise<number[]> {
@@ -269,6 +271,7 @@ export class ChapterService {
             select: {
                 id: true,
                 title: true,
+                content: true,
                 novelId: true,
                 createdAt: true,
                 updatedAt: true,
@@ -319,6 +322,32 @@ export class ChapterService {
 
 
     async remove(id: number): Promise<Chapter> {
+        const chapter = await this.prisma.chapter.findUnique({
+            where: {
+                id
+            }, select: { content: true }
+        })
+        // "https://firebasestorage.googleapis.com/v0/b/tttn-ktc.appspot.com/o/Truyen%2F2%2F3%2Fchapter_a8a2dfda-5384-410f-9c13-7c1162504b58.txt?alt=media&token=a3ebe736-b907-445a-bb91-3cf1b6dde0a4"
+
+        const decodedUrl = decodeURIComponent(chapter.content);
+
+        // Tách phần đường dẫn tệp từ URL
+        const filePath = decodedUrl.split('/o/')[1]?.split('?')[0];
+
+        // Chuyển đổi URL thành đường dẫn tệp Firebase Storage
+        console.log(filePath)
+        if (!filePath) {
+            throw new Error('Invalid file URL');
+        }
+        // Xóa tệp khỏi Firebase Storage
+        const fileRef = ref(this.storage, filePath);
+        try {
+            await deleteObject(fileRef);
+            console.log('Tệp đã được xóa thành công!');
+        } catch (error) {
+            console.error('Lỗi khi xóa tệp:', error);
+            throw new Error('Failed to delete file');
+        }
         return this.prisma.chapter.delete({
             where: { id },
         });

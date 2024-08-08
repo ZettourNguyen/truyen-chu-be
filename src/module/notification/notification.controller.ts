@@ -14,10 +14,17 @@ export class NotificationController {
         return this.notificationService.addNotification(createNotificationDto);
     }
 
+    @Post(":id")
+    async changeStateIsSeen(@Param('id') id: number) {
+        console.log(id);
+        return this.notificationService.changeStateIsSeen(+id);
+    }
+
+
     // Endpoint để thêm thông báo bởi admin cho tất cả user đang hoạt động
     @Post('/admin/:senderId')
     async addNotificationByAdmin(
-        @Param("senderId") senderId :string,
+        @Param("senderId") senderId: string,
         @Body() createNotificationByAdminDto: CreateNotificationByAdminDto) {
         return this.notificationService.addNotificationByAdmin(+senderId, createNotificationByAdminDto);
     }

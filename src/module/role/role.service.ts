@@ -1,10 +1,12 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/Prisma/prisma.service';
 import { CreateUserToRole } from './dto';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class RoleService {
     constructor(private readonly prisma: PrismaService,
+        private readonly notificationService: NotificationService
     ) { }
     async getManyRoleIdOfUserId(userId: number) {
         const roles = this.prisma.userToRole.findMany({
@@ -49,7 +51,7 @@ export class RoleService {
         })
         return permission
     }
-    async getPermissionOfRole(roleId: number, userId? : number) {
+    async getPermissionOfRole(roleId: number, userId?: number) {
         if (userId) {
             await this.checkPermission(userId, "Role")
         }
@@ -82,14 +84,14 @@ export class RoleService {
             roles.map(async role => {
                 const permissions = await this.getPermissionOfRole(role.id);
 
-                return{...role, permissions}
+                return { ...role, permissions }
             })
         );
         return rolesAndPermissions
     }
 
 
-    async checkPermission(userId:number, permissionName: string){
+    async checkPermission(userId: number, permissionName: string) {
         const permissions = await this.getPermissionOfUser(userId)
 
         const hasPermission = await Promise.all(
@@ -103,12 +105,12 @@ export class RoleService {
         }
         return true
     }
-    
-    async addRole(userId: number, roleName: string, roleDescription: string){
+
+    async addRole(userId: number, roleName: string, roleDescription: string) {
         await this.checkPermission(userId, "Role")
         const checkNameRoleExisting = await this.prisma.role.findFirst({
-            where:{
-                name : roleName
+            where: {
+                name: roleName
             }
         })
         if (checkNameRoleExisting) {
@@ -123,50 +125,157 @@ export class RoleService {
         return result
     }
 
-    async addUserToRole(userId:number , userIdAdd : number, roleIdAdd: number){
+    async addUserToRole(userId: number, userIdAdd: number, roleIdAdd: number) {
         await this.checkPermission(userId, "Role")
 
         const result = await this.prisma.userToRole.create({
             data: {
-                userId : userIdAdd,
-                roleId : roleIdAdd
+                userId: userIdAdd,
+                roleId: roleIdAdd
             }
         })
+
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId }
+        })
+        const permissions = await this.getPermissionOfRole(roleIdAdd)
+
+        const notificationPromises = permissions.map(async (permission) => {
+            const permissionName = permission.name;
+            console.log(permissionName)
+            // Xác định tiêu đề và nội dung thông báo dựa trên quyền
+            let title = "";
+            let content = ``;
+            if (permissionName.includes('Manager')) {
+                title = "Bạn có thể sử dụng quyền quản lý";
+                content = `Bạn đã được thêm vai trò ${permissionName} bởi ${user.username}`;
+            }
+            switch (permissionName) {
+                case "NoComment":
+                    title = "Bạn đã bị cấm bình luận";
+                    content = `Bạn đã bị cấm bình luận bởi ${user.username}. Nếu không hiểu vì sao, xin liên hệ với quản trị viên`;
+                    break;
+                case "NoPost":
+                    title = "Bạn đã bị cấm đăng truyện";
+                    content = `Bạn đã bị cấm đăng truyện bởi ${user.username}. Nếu không hiểu vì sao, xin liên hệ với quản trị viên`;
+                    break;
+                case "NoReview":
+                    title = "Bạn đã bị cấm đánh giá";
+                    content = `Bạn đã bị cấm đánh giá bởi ${user.username}. Nếu không hiểu vì sao, xin liên hệ với quản trị viên`;
+                    break;
+                case "NoReport":
+                    title = "Bạn đã bị cấm báo cáo";
+                    content = `Bạn đã bị cấm báo cáo bởi ${user.username}. Nếu không hiểu vì sao, xin liên hệ với quản trị viên`;
+                    break;
+                default:
+                    // Nếu quyền không được xác định, sử dụng tiêu đề và nội dung mặc định
+                    break;
+            }
+
+            // Tạo đối tượng thông báo
+            const dataAddNotification = {
+                title,
+                type: "unseen",
+                content,
+                userId: userIdAdd,
+            };
+            // Gửi thông báo
+            if (dataAddNotification.title !== "") {
+                await this.notificationService.addNotification(dataAddNotification);
+            }
+        });
+
+        // Chờ tất cả các thông báo được gửi
+        await Promise.all(notificationPromises);
+
+
         return result
 
     }
 
-    async addPermissionToRole(roleId: number,userId: number, permissionId: number){
+    async addPermissionToRole(roleId: number, userId: number, permissionId: number) {
         await this.checkPermission(userId, "Role")
 
         const result = await this.prisma.roleToPermission.create({
-            data:{
+            data: {
                 roleId, permissionId
             }
         })
         return result
     }
     // removeUserToRole
-    async removeUserToRole(userId: number,userIdRm: number, roleId: number){
+    async removeUserToRole(userId: number, userIdRm: number, roleId: number) {
         await this.checkPermission(userId, "Role")
-
+        console.log(roleId)
         const result = await this.prisma.userToRole.delete({
-            where:{
-                userId_roleId:{
-                    userId:userIdRm,
+            where: {
+                userId_roleId: {
+                    userId: userIdRm,
                     roleId
                 }
             }
         })
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId }
+        })
+        const permissions = await this.getPermissionOfRole(roleId)
+        const notificationPromises = permissions.map(async (permission) => {
+            const permissionName = permission.name;
+            console.log(permissionName)
+            // Xác định tiêu đề và nội dung thông báo dựa trên quyền
+            let title = "";
+            let content = ``;
+            if (permissionName.includes('Manager')) {
+                title = "Bạn đã bị mất quyền quản lý";
+                content = `Bạn đã loại bỏ vai trò ${permissionName} bởi ${user.username}`;
+            }
+            switch (permissionName) {
+                case "NoComment":
+                    title = "Bạn đã có thể bình luận";
+                    content = `Bạn đã có thể bình luận bởi ${user.username}`;
+                    break;
+                case "NoPost":
+                    title = "Bạn đã có thể đăng truyện";
+                    content = `Bạn đã có thể đăng truyện bởi ${user.username}`;
+                    break;
+                case "NoReview":
+                    title = "Bạn đã có thể đánh giá";
+                    content = `Bạn đã có thể đánh giá bởi ${user.username}`;
+                    break;
+                case "NoReport":
+                    title = "Bạn đã có thể báo cáo";
+                    content = `Bạn đã có thể báo cáo bởi ${user.username}`;
+                    break;
+
+                default:
+                    // Nếu quyền không được xác định, sử dụng tiêu đề và nội dung mặc định
+                    break;
+            }
+
+            // Tạo đối tượng thông báo
+            const dataAddNotification = {
+                title,
+                type: "unseen",
+                content,
+                userId: userIdRm,
+            };
+            // Gửi thông báo
+            if (dataAddNotification.title !== "") {
+                await this.notificationService.addNotification(dataAddNotification);
+            }
+        });
+
+        // Chờ tất cả các thông báo được gửi
+        await Promise.all(notificationPromises);
         return result
     }
 
-    async removePermissionToRole(userId: number, roleId: number, permissionId: number){
+    async removePermissionToRole(userId: number, roleId: number, permissionId: number) {
         await this.checkPermission(userId, "Role")
 
         const result = await this.prisma.roleToPermission.delete({
-            where:{
-                roleId_permissionId:{
+            where: {
+                roleId_permissionId: {
                     roleId, permissionId
                 }
             }
@@ -174,22 +283,26 @@ export class RoleService {
         return result
     }
 
-    async removeRole(userId: number, roleId: number){
+    async removeRole(userId: number, roleId: number) {
         await this.checkPermission(userId, "Role")
 
 
-        await this.prisma.roleToPermission.deleteMany({
+        const numberOfPermission = await this.prisma.roleToPermission.count({
             where:{
                 roleId
             }
         })
+        console.log(numberOfPermission)
+        if (numberOfPermission>0) {
+            throw new BadRequestException('Hãy xóa tất cả quyền trước khi xóa Vai trò')
+        }
         await this.prisma.userToRole.deleteMany({
-            where:{
+            where: {
                 roleId
             }
         })
         const deleteRole = await this.prisma.role.delete({
-            where:{
+            where: {
                 id: roleId
             }
         })
@@ -197,11 +310,11 @@ export class RoleService {
         return deleteRole
     }
 
-    async findAllPermission(userId){
+    async findAllPermission(userId) {
         await this.checkPermission(userId, "Role")
 
         return await this.prisma.permission.findMany({
-            orderBy:{name:"asc"}
+            orderBy: { name: "asc" }
         })
 
     }
