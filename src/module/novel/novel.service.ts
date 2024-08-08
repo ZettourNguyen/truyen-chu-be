@@ -103,7 +103,7 @@ export class NovelService {
             // Lấy thời điểm của chương mới nhất
             const listTime = novel.chapters.map(chapter => new Date(chapter.createdAt).getTime());
             const lastTime = Math.max(...listTime);
-            const lastChapterCreatedAt = new Date(lastTime).toISOString();
+            const lastChapterCreatedAt = new Date(lastTime);
 
             return {
                 id: novel.id,
