@@ -101,9 +101,12 @@ export class NovelService {
             const totalViews = novel.chapters.reduce((acc, chapter) => acc + chapter.View.length, 0);
 
             // Lấy thời điểm của chương mới nhất
-            const listTime = novel.chapters.map(chapter => new Date(chapter.createdAt).getTime());
+            const listTime = novel.chapters.map(chapter => {
+                const time = new Date(chapter.createdAt).getTime();
+                return isNaN(time) ? 0 : time; // Xử lý trường hợp ngày giờ không hợp lệ
+            });
             const lastTime = Math.max(...listTime);
-            const lastChapterCreatedAt = new Date(lastTime);
+            const lastChapterCreatedAt = new Date(lastTime).toISOString();
 
             return {
                 id: novel.id,
