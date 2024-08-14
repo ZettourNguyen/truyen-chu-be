@@ -12,6 +12,7 @@ import { formatString, replaceMultipleSpacesAndTrim } from 'src/utils/word';
 import { TagService } from '../tag/tag.service';
 import { ChapterService } from '../chapter/chapter.service';
 import { RoleService } from '../role/role.service';
+import { Novel } from '@prisma/client';
 
 @Injectable()
 export class NovelService {
@@ -22,6 +23,58 @@ export class NovelService {
         private readonly chapterService: ChapterService,
         private readonly roleService: RoleService,
     ) { }
+
+    async findNovelByKeyWord(keyword: string) {
+        const novels = await this.prisma.novel.findMany({
+            where: {
+                title: {
+                    contains: keyword,
+                }
+            },
+            include: {
+                chapters: {
+                    include: {
+                        View: true // Bao gồm lượt xem của các chương
+                    }
+                },
+                authors: {
+                    include: {
+                        author: true // Lấy thông tin tác giả qua bảng liên kết
+                    }
+                },
+                tags: {
+                    include: {
+                        tag: true
+                    }
+                },
+                category: true,
+                poster: true
+            }
+        });
+        const result = novels.map(novel => {
+            // Tính tổng số lượt xem từ các chương
+            const totalViews = novel.chapters.reduce((acc, chapter) => acc + chapter.View.length, 0);
+            // Lấy danh sách tên tác giả và ID tác giả
+            const authorNames = novel.authors.map(novelAuthor => novelAuthor.author.nickname).join(', ');
+            const authorIds = novel.authors.map(novelAuthor => novelAuthor.author.id).join(', ');
+            // Trả về dữ liệu theo định dạng yêu cầu
+            return {
+                id: novel.id,
+                title: novel.title,
+                image: novel.image,
+                description: novel.description,
+                categoryId: novel.categoryId,
+                categoryName: novel.category.name,
+                posterId: novel.posterId,
+                posterName: novel.poster.username,
+                tags: novel.tags.map(tag => tag.tag),
+                author: novel.authors.map(author => author.author),
+                createdAt: novel.createdAt.toISOString(),
+                views: totalViews
+            };
+        });
+        return result
+    }
 
     async get10Novel() {
         const novels = await this.prisma.novel.findMany({
@@ -73,7 +126,7 @@ export class NovelService {
         // Lấy tất cả các truyện kèm các chương và thông tin tác giả
         const novels = await this.prisma.novel.findMany({
             take: 20,
-            where:{
+            where: {
                 state: {
                     notIn: ['unpublished', 'deleted', 'pending']  // notIn: ["deleted", "unpublish"] 
                 }
@@ -126,7 +179,7 @@ export class NovelService {
 
 
 
-    // thuật toán Fisher-Yates/ ở đây dùng cho việc lấy ngẫu nhiên truyện 
+    // thuật toán xáo trộn ở đây dùng cho việc lấy ngẫu nhiên truyện 
     private shuffleArray(array: number[]) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -392,8 +445,22 @@ export class NovelService {
         })
         return result
     }
+    async getRandomBanners() {
+        // Lấy tất cả các bản ghi có trường `banner` không phải là null
+        const allNovels = await this.prisma.novel.findMany({
+            where: {
+                banner: {
+                    not: null,
+                },
+            },
+        });
 
+        // Trộn danh sách và lấy 3 bản ghi ngẫu nhiên
+        const shuffledNovels = allNovels.sort(() => 0.5 - Math.random());
+        const randomNovels = shuffledNovels.slice(0, 3);
 
+        return randomNovels;
+    }
     async getNovelsByRandom() {
         const totalNovels = await this.prisma.novel.count();
         const count = 6; // Số lượng tiểu thuyết cần lấy
@@ -402,8 +469,8 @@ export class NovelService {
             throw new BadRequestException('Không đủ novel cho random');
         }
 
-        const novelIds = (await this.prisma.novel.findMany({ 
-            select: { id: true } , where:{state:{notIn: ["deleted", "unpublished", "pending"]  }}
+        const novelIds = (await this.prisma.novel.findMany({
+            select: { id: true }, where: { state: { notIn: ["deleted", "unpublished", "pending"] } }
         })).map(novel => novel.id);
         const shuffledIds = this.shuffleArray(novelIds).slice(0, count);
 
@@ -444,10 +511,10 @@ export class NovelService {
     }
 
     async getNovelsByMostLiked() {
-         const novels = await this.prisma.novel.findMany({
+        const novels = await this.prisma.novel.findMany({
             take: 6,
-            where:{
-                state:{
+            where: {
+                state: {
                     notIn: ['deleted', 'unpublished', 'pending']
                 }
             },
@@ -465,9 +532,9 @@ export class NovelService {
                     }
                 }
             },
-            orderBy:{
-                followers:{
-                    _count: 'desc' 
+            orderBy: {
+                followers: {
+                    _count: 'desc'
                 }
             }
 
@@ -515,19 +582,19 @@ export class NovelService {
     }
 
     async findOneNovelByName(title: string) {
-          try {
+        try {
             const novel = await this.prisma.novel.findFirst({
                 where: {
-                  title: title
+                    title: title
                 }
-              });
-              return novel;
-          } catch (error) {
+            });
+            return novel;
+        } catch (error) {
             throw new BadRequestException(error)
-          }
+        }
 
-      }
-      
+    }
+
 
 
     async findManyNovelsByCategoryId(id: number) {
@@ -554,17 +621,19 @@ export class NovelService {
 
     async getAllNovels() {
         const novels = await this.prisma.novel.findMany({
-            include:{
-                poster:{select:{
-                    id: true,
-                    username: true
-                }},
+            include: {
+                poster: {
+                    select: {
+                        id: true,
+                        username: true
+                    }
+                },
             }
         });
 
-        const result = await Promise.all(novels.map( async (novel)=> {
+        const result = await Promise.all(novels.map(async (novel) => {
             const chapterCount = await this.countChapterInNovel(novel.id)
-            return{
+            return {
                 id: novel.id,
                 title: novel.title,
                 state: novel.state,
@@ -583,9 +652,9 @@ export class NovelService {
             where: {
                 id: id,
             },
-            include:{
-                chapters:{
-                    select:{
+            include: {
+                chapters: {
+                    select: {
                         _count: {
                             select: { View: true } // Tính số lượng lượt xem
                         }
@@ -719,14 +788,14 @@ export class NovelService {
 
     }
 
-    async deleteNovel(id: number, userId:number) {
+    async deleteNovel(id: number, userId: number) {
         await this.roleService.checkPermission(userId, "Novel")
         // Kiểm tra xem tiểu thuyết có tồn tại không
-        const novel = await this.prisma.novel.findUnique({ where: { id, state:"deleted" } });
+        const novel = await this.prisma.novel.findUnique({ where: { id, state: "deleted" } });
         if (!novel) {
             throw new NotFoundException(`Novel with id ${id} not found`);
         }
-        
+
         // Xoa cac chapter
         await this.prisma.chapter.deleteMany({
             where: {

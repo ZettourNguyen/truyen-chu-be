@@ -9,6 +9,12 @@ import { HttpExceptionFilter } from 'src/utils/http-exception.filter';
 export class NovelController {
     constructor(private readonly novelService: NovelService) { }
 
+    @Get('search')
+    async searchNovels(@Query('keyword') keyword: string) {
+      const result = await this.novelService.findNovelByKeyWord(keyword);
+      return result
+    }
+
     @Get('get10Novel')
     async get10Novel() {
         return this.novelService.get10Novel();
@@ -24,6 +30,10 @@ export class NovelController {
     @Get('/:id')
     async getNovelPageById(@Param('id') id: string) {
         return this.novelService.getNovelPageById(+id);
+    }
+    @Get('/banner/a')// 6 cai
+    async getBanner() {
+        return this.novelService.getRandomBanners()
     }
     @Get('/random/6')// 6 cai
     async getNovelsByRandom() {
